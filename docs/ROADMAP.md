@@ -12,7 +12,7 @@
 - [x] Dependabot and CodeQL workflows
 
 ## Phase 1 — Evidence and API security
-- [ ] Configure and validate a licensed phishing-reputation provider
+- [x] Integrate a public MIT-licensed phishing/scam domain reputation API with primary/community match distinction\n- [ ] Add secondary provider and provider-outage monitoring
 - [ ] Add rate limiting and abuse controls
 - [ ] Add scan-history access model and pagination
 - [ ] Add audit trail and provider freshness indicators
