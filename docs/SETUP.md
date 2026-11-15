@@ -14,7 +14,7 @@ Keep production on Cloudflare Pages. Do not create a parallel app or migrate hos
 Configure under Cloudflare Pages > mr-tirrion-scam-detector > Settings > Variables and Secrets > Production:
 
 - `DATABASE_URL`: Neon pooled connection string. Server-side only.
-- `PHISHTANK_APP_KEY`: optional PhishTank application key. Register at https://phishtank.org/api_register.php. Keep it server-side; never expose it in public HTML or client-side variables.
+No threat-feed API key is required for the current PhishDestroy API integration. The scanner sends only the normalized hostname to `https://api.destroy.tools/v1/check`. The provider's feed updates are reflected in live scan-time checks. Do not add OpenPhish Community feed without written permission.
 
 After changing production secrets, trigger a new Pages deployment so Functions receive the updated configuration.
 
