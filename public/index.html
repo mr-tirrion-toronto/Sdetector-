@@ -4,34 +4,122 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#07111f">
+  <meta name="description" content="Scam Detector helps you inspect suspicious website URLs, understand risk signals and make safer decisions before you click.">
   <title>Scam Detector — Website Risk Intelligence</title>
   <style>
-    :root{color-scheme:dark;--bg:#07111f;--panel:#101e30;--line:#26384d;--text:#eef5ff;--muted:#9aabc0;--accent:#63e6be}
-    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#142d43 0,var(--bg) 55%);font:16px/1.5 Inter,system-ui,sans-serif;color:var(--text);min-height:100vh}
-    main{width:min(900px,calc(100% - 32px));margin:0 auto;padding:72px 0}.brand{letter-spacing:.16em;color:var(--accent);font-size:12px;font-weight:800}
-    h1{font-size:clamp(36px,7vw,64px);line-height:1.02;letter-spacing:-.05em;margin:20px 0 16px}.lead{color:var(--muted);max-width:650px}
-    .panel{margin-top:36px;padding:24px;border:1px solid var(--line);border-radius:22px;background:#101e30dd;box-shadow:0 24px 80px #0005}
-    label{display:block;font-weight:650;margin-bottom:10px}form{display:flex;gap:10px;flex-wrap:wrap}input{flex:1;min-width:220px;padding:16px;border-radius:12px;border:1px solid var(--line);background:#07111f;color:var(--text);font-size:16px}
-    button{padding:0 22px;border:0;border-radius:12px;background:var(--accent);color:#062018;font-weight:800;font-size:15px;cursor:pointer;min-height:52px}button:disabled{opacity:.6;cursor:wait}
-    #status{color:var(--muted);margin:16px 0 0}.result{margin-top:20px;display:none}.score{font-size:38px;font-weight:800}.finding{padding:14px 0;border-top:1px solid var(--line)}.finding small{color:var(--muted)}.note{font-size:13px;color:var(--muted);margin-top:24px}
+    :root{color-scheme:dark;--bg:#07111f;--surface:#0c1929;--panel:#102238;--line:#20364c;--text:#eff6ff;--muted:#9db0c6;--mint:#69f0c1;--blue:#83baff;--red:#ff7185;--amber:#ffc66d;--radius:22px}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 80% -10%,#153a50 0,transparent 38%),radial-gradient(ellipse at 0 45%,#10243a 0,transparent 35%),var(--bg);font:15px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);min-height:100vh}
+    a{color:inherit;text-decoration:none}button,input{font:inherit}.shell{width:min(1120px,calc(100% - 36px));margin:auto}
+    header{height:76px;border-bottom:1px solid #ffffff12;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;gap:11px;align-items:center;font-weight:850;letter-spacing:.02em}.brandmark{width:36px;height:36px;border:1px solid #69f0c177;border-radius:12px;display:grid;place-items:center;color:var(--mint);background:#69f0c112}.brandmark svg{width:21px;height:21px}.brand small{display:block;color:var(--muted);font-size:9px;letter-spacing:.19em;font-weight:750}.nav{display:flex;gap:24px;color:var(--muted);font-size:13px}.nav a:hover{color:var(--mint)}.status-pill{display:flex;align-items:center;gap:8px;border:1px solid #69f0c133;background:#69f0c10c;border-radius:99px;padding:7px 11px;color:#b5ffe5;font-size:11px;font-weight:700}.dot{width:7px;height:7px;background:var(--mint);border-radius:50%;box-shadow:0 0 12px var(--mint)}
+    .hero{padding:76px 0 40px;text-align:center}.eyebrow{color:var(--mint);font-size:11px;font-weight:850;letter-spacing:.2em;text-transform:uppercase}.hero h1{font-size:clamp(40px,7vw,76px);line-height:1.02;letter-spacing:-.065em;margin:18px auto 18px;max-width:850px}.hero h1 span{color:var(--mint)}.hero-copy{max-width:660px;margin:auto;color:var(--muted);font-size:16px}.trustline{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-top:26px;color:#b5c5d7;font-size:11px}.trustline span{display:flex;gap:7px;align-items:center}.check{color:var(--mint);font-weight:900}
+    .scanner{max-width:850px;margin:0 auto;padding:25px;border:1px solid #36516b;background:linear-gradient(145deg,#132940f2,#0c1b2df2);border-radius:26px;box-shadow:0 28px 100px #0007;position:relative;overflow:hidden}.scanner:before{content:"";position:absolute;inset:0 0 auto;height:1px;background:linear-gradient(90deg,transparent,#69f0c1aa,transparent)}.scan-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}.scan-head strong{font-size:16px}.scan-head small{color:var(--muted);font-size:11px}.scan-icon{color:var(--mint);font-size:20px}.field-label{display:block;font-size:12px;font-weight:750;margin-bottom:9px;color:#dce8f6}.input-wrap{display:flex;gap:10px}.input-wrap input{flex:1;min-width:0;background:#071321;border:1px solid #2c435b;border-radius:13px;color:var(--text);padding:16px 17px;outline:none;font-size:15px}.input-wrap input:focus{border-color:var(--mint);box-shadow:0 0 0 3px #69f0c11b}.input-wrap input::placeholder{color:#60748b}.primary{border:0;border-radius:13px;padding:0 22px;background:var(--mint);color:#062319;font-weight:850;cursor:pointer;min-height:54px;white-space:nowrap;transition:transform .18s,filter .18s}.primary:hover{filter:brightness(1.06);transform:translateY(-1px)}.primary:disabled{opacity:.65;cursor:wait;transform:none}.input-hint{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#8196ad;font-size:10px;margin-top:10px}.status{min-height:25px;margin:13px 0 0;color:var(--muted);font-size:12px}.status.error{color:#ff9cab}
+    .result{display:none;border-top:1px solid var(--line);margin-top:18px;padding-top:22px}.result-top{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}.result-domain{font-size:17px;font-weight:800;overflow-wrap:anywhere}.result-meta{color:var(--muted);font-size:11px}.risk{border:1px solid var(--line);padding:9px 13px;border-radius:12px;text-align:right;min-width:120px}.risk b{font-size:22px;display:block;line-height:1.2}.risk span{font-size:9px;letter-spacing:.13em;color:var(--muted);font-weight:800}.risk.low{border-color:#69f0c155;color:var(--mint)}.risk.guarded{border-color:#ffc66d66;color:var(--amber)}.risk.high,.risk.critical{border-color:#ff718566;color:#ff8c9c}.meter{height:7px;border-radius:99px;background:#20344a;overflow:hidden;margin:17px 0 19px}.meter-fill{height:100%;width:0;background:var(--mint);border-radius:99px;transition:width .4s}.finding-title{font-size:12px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;margin:15px 0 5px}.finding{padding:13px 0;border-top:1px solid #ffffff12}.finding strong{font-size:13px}.finding p{margin:5px 0;color:var(--muted);font-size:12px}.severity{font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;border-radius:6px;padding:3px 7px;margin-left:7px;background:#ffffff12;color:#d8e4f0}.severity.high{color:#ff9cab;background:#ff71851a}.severity.medium{color:var(--amber);background:#ffc66d18}.severity.low{color:#a9caff;background:#83baff18}.empty-findings{color:#b9fbe2;font-size:13px;padding:14px 0}.limitations{margin-top:15px;padding:13px;border-radius:12px;background:#071321;border:1px solid #ffffff12;color:#93a9c0;font-size:10px}.result-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.secondary{border:1px solid #35506a;background:#13283e;color:#dbe9f7;padding:10px 13px;border-radius:10px;font-size:11px;font-weight:750;cursor:pointer}.secondary:hover{border-color:var(--mint);color:var(--mint)}
+    .section{padding:72px 0 10px}.section-head{text-align:center;max-width:650px;margin:0 auto 28px}.section-head h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.04em;margin:8px 0}.section-head p{color:var(--muted);font-size:13px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.feature{padding:20px;border:1px solid var(--line);border-radius:17px;background:#0d1b2bba}.feature-icon{width:35px;height:35px;border-radius:11px;display:grid;place-items:center;background:#69f0c115;color:var(--mint);font-size:17px}.feature h3{font-size:14px;margin:14px 0 6px}.feature p{color:var(--muted);font-size:12px;margin:0}.workflow{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;text-align:center}.step-num{font-size:11px;color:var(--mint);font-weight:900;letter-spacing:.15em}.workflow h3{font-size:14px;margin:8px 0 4px}.workflow p{font-size:12px;color:var(--muted);margin:0}
+    .disclaimer{margin:62px 0 34px;padding:17px 19px;border:1px solid #ffc66d35;background:#ffc66d0b;border-radius:14px;color:#d4c3a5;font-size:11px}.disclaimer strong{color:var(--amber)}footer{border-top:1px solid #ffffff12;padding:24px 0 34px;color:#71869d;font-size:10px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.footer-brand{color:#c9d9e9;font-weight:800}
+    @media(max-width:680px){.shell{width:min(100% - 24px,1120px)}header{height:66px}.nav{display:none}.hero{padding:55px 0 30px}.hero-copy{font-size:14px}.scanner{padding:18px;border-radius:19px}.input-wrap{flex-direction:column}.primary{width:100%}.grid{grid-template-columns:1fr}.workflow{grid-template-columns:1fr;gap:23px}.trustline{gap:10px 15px}.section{padding-top:55px}.result-top{align-items:flex-start}.risk{min-width:100px}.scan-head small{display:none}}
+    @media print{body{background:#fff;color:#111}.shell>header,.hero,.section,.disclaimer,footer,.scanner form,.scan-head,.input-hint,.result-actions{display:none!important}.shell{width:100%}.scanner{display:block;margin:0;border:0;box-shadow:none;background:#fff;color:#111;padding:0}.result{display:block!important}.result-meta,.finding p,.limitations{color:#333}.finding{border-color:#ddd}.risk{color:#111!important;border-color:#888!important}}
   </style>
 </head>
-<body><main>
-  <div class="brand">SCAM DETECTOR / THREAT INTELLIGENCE</div>
-  <h1>Know the risk<br>before you click.</h1>
-  <p class="lead">Investigate suspicious website URLs and understand the signals behind an initial risk assessment. This early version analyses URL structure only; it does not yet inspect the live website.</p>
-  <section class="panel">
-    <form id="scan-form">
-      <div style="width:100%"><label for="target">Website URL</label><input id="target" name="url" type="url" placeholder="https://example.com" required maxlength="2048"></div>
-      <button id="submit" type="submit">Analyse URL</button>
-    </form>
-    <p id="status" role="status">Ready for a URL analysis.</p>
-    <div id="result" class="result" aria-live="polite"></div>
+<body>
+<div class="shell">
+  <header>
+    <a class="brand" href="/" aria-label="Scam Detector home"><span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8 20 6v5.2c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3.2Z"/><path d="m8.7 12 2.1 2.1 4.6-4.7"/></svg></span><span>SCAM DETECTOR<small>WEBSITE RISK INTELLIGENCE</small></span></a>
+    <nav class="nav"><a href="#scanner">URL Scanner</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
+    <div class="status-pill"><i class="dot"></i> SCANNER ONLINE</div>
+  </header>
+  <section class="hero">
+    <div class="eyebrow">Think before you click</div>
+    <h1>See the warning signs.<br><span>Stay one step ahead.</span></h1>
+    <p class="hero-copy">Check suspicious website links, understand the risk signals and make a more informed decision before visiting an unfamiliar destination.</p>
+    <div class="trustline"><span><i class="check">✓</i> Explainable findings</span><span><i class="check">✓</i> No account required</span><span><i class="check">✓</i> Privacy-conscious checks</span></div>
   </section>
-  <p class="note">A low-risk result is not proof that a website is safe. Never enter passwords or payment information on a site you do not trust.</p>
-</main>
+  <section class="scanner" id="scanner" aria-labelledby="scanner-title">
+    <div class="scan-head"><div><strong id="scanner-title">Website URL scanner</strong><br><small>Paste a link to begin a security assessment</small></div><span class="scan-icon">⌕</span></div>
+    <form id="scan-form">
+      <label class="field-label" for="target">Website address</label>
+      <div class="input-wrap"><input id="target" name="url" type="url" placeholder="https://example.com" required maxlength="2048" autocomplete="url" spellcheck="false"><button class="primary" id="submit" type="submit">Analyse website <span aria-hidden="true">→</span></button></div>
+      <div class="input-hint"><span>Supports HTTP and HTTPS links</span><span>Do not open the link to scan it</span></div>
+    </form>
+    <p class="status" id="status" role="status" aria-live="polite">Ready when you are. Enter a URL above.</p>
+    <div class="result" id="result" aria-live="polite"></div>
+  </section>
+  <section class="section" id="capabilities">
+    <div class="section-head"><div class="eyebrow">Built for clarity</div><h2>Understand what makes a link suspicious.</h2><p>Every finding is designed to explain a signal and give you a practical next step—not just a number.</p></div>
+    <div class="grid">
+      <article class="feature"><div class="feature-icon">⌘</div><h3>URL structure analysis</h3><p>Inspect hostname patterns, unusual subdomains, deceptive URL syntax and suspicious path terms.</p></article>
+      <article class="feature"><div class="feature-icon">◈</div><h3>Risk scoring</h3><p>See a 0–100 indicator with a risk category and the individual signals contributing to it.</p></article>
+      <article class="feature"><div class="feature-icon">◎</div><h3>Actionable guidance</h3><p>Each detected signal includes evidence and a recommendation to help you decide what to do next.</p></article>
+    </div>
+  </section>
+  <section class="section" id="how-it-works">
+    <div class="section-head"><div class="eyebrow">Simple by design</div><h2>Three steps. More informed decisions.</h2></div>
+    <div class="workflow">
+      <article><div class="step-num">01 / SUBMIT</div><h3>Paste the website URL</h3><p>Enter the link you want to examine without visiting it first.</p></article>
+      <article><div class="step-num">02 / ANALYSE</div><h3>Review the signals</h3><p>The scanner checks URL patterns and calculates an explainable preliminary score.</p></article>
+      <article><div class="step-num">03 / DECIDE</div><h3>Use the evidence</h3><p>Read the findings and verify important links through trusted channels.</p></article>
+    </div>
+  </section>
+  <aside class="disclaimer"><strong>Important security note</strong><br>Scam Detector is currently an early URL-pattern assessment tool. It does not yet fetch or inspect live website content, DNS records, TLS certificates, domain registration age, redirects or external threat-intelligence feeds. A low score is not proof that a website is safe. Never submit passwords, payment details or private information to a site you do not trust.</aside>
+  <footer><span class="footer-brand">SCAM DETECTOR</span><span>Independent website risk awareness · Cloudflare Pages</span><span>© <span id="year"></span> Scam Detector</span></footer>
+</div>
 <script>
-const form=document.querySelector('#scan-form'),button=document.querySelector('#submit'),status=document.querySelector('#status'),result=document.querySelector('#result');
-form.addEventListener('submit',async e=>{e.preventDefault();button.disabled=true;status.textContent='Analysing URL…';result.style.display='none';try{const response=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:document.querySelector('#target').value})});const data=await response.json();if(!response.ok)throw new Error(data.error||'Scan failed');result.style.display='block';result.innerHTML='<div class="score">'+data.score+'/100 · '+data.riskLevel.toUpperCase()+'</div><p><strong>'+escapeHtml(data.hostname)+'</strong></p>'+(data.findings.length?data.findings.map(f=>'<div class="finding"><strong>'+escapeHtml(f.title)+'</strong><br><small>'+escapeHtml(f.evidence)+'</small><p>'+escapeHtml(f.recommendation)+'</p></div>').join(''):'<p>No URL-pattern warnings were detected by this basic check.</p>')+'<p class="note">'+data.limitations.map(escapeHtml).join('<br>')+'</p>';status.textContent='Analysis complete. Scan ID: '+data.scanId}catch(err){status.textContent=err.message}finally{button.disabled=false}});
-function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-</script></body></html>
+const form=document.querySelector('#scan-form');
+const button=document.querySelector('#submit');
+const statusEl=document.querySelector('#status');
+const resultEl=document.querySelector('#result');
+const input=document.querySelector('#target');
+document.querySelector('#year').textContent=new Date().getFullYear();
+
+form.addEventListener('submit',async event=>{
+  event.preventDefault();
+  button.disabled=true;
+  button.textContent='Analysing…';
+  statusEl.className='status';
+  statusEl.textContent='Checking URL patterns. Please wait…';
+  resultEl.style.display='none';
+  try{
+    const response=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({url:input.value.trim()})});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.error||'The scan could not be completed.');
+    renderResult(data);
+    statusEl.textContent=data.persistence==='saved'?'Analysis complete · Scan securely recorded.':'Analysis complete · Database saving is not currently confirmed.';
+    saveLocalScan(data);
+  }catch(error){
+    statusEl.className='status error';
+    statusEl.textContent=error instanceof Error?error.message:'Something went wrong. Please try again.';
+  }finally{
+    button.disabled=false;
+    button.innerHTML='Analyse website <span aria-hidden="true">→</span>';
+  }
+});
+
+function renderResult(data){
+  const level=String(data.riskLevel||'unknown').toLowerCase();
+  const findings=Array.isArray(data.findings)?data.findings:[];
+  resultEl.innerHTML=
+    '<div class="result-top"><div><div class="result-domain">'+escapeHtml(data.hostname)+'</div><div class="result-meta">Scan ID · '+escapeHtml(data.scanId)+'</div></div>'+
+    '<div class="risk '+escapeHtml(level)+'"><b>'+Number(data.score)+'/100</b><span>'+escapeHtml(level)+' RISK</span></div></div>'+
+    '<div class="meter" role="img" aria-label="Risk score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+riskColor(level)+'"></div></div>'+
+    '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
+    (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No warning patterns were detected in this URL-only check. This does not establish that the website is safe.</div>')+
+    '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
+    '<div class="result-actions"><button class="secondary" id="print-report" type="button">Print / Save as PDF</button><button class="secondary" id="copy-summary" type="button">Copy summary</button></div>';
+  resultEl.style.display='block';
+  document.querySelector('#print-report').addEventListener('click',()=>window.print());
+  document.querySelector('#copy-summary').addEventListener('click',async()=>{
+    const summary='Scam Detector report\nWebsite: '+data.hostname+'\nRisk score: '+data.score+'/100\nRisk level: '+level+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No URL-pattern warnings detected.')+'\n\nThis is a preliminary URL-only assessment, not a safety guarantee.';
+    try{await navigator.clipboard.writeText(summary);statusEl.textContent='Report summary copied.'}catch{statusEl.textContent='Clipboard unavailable in this browser. Use Print / Save as PDF instead.'}
+  });
+}
+function riskColor(level){return level==='critical'||level==='high'?'#ff7185':level==='guarded'?'#ffc66d':'#69f0c1'}
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
+function saveLocalScan(data){
+  try{
+    const history=JSON.parse(localStorage.getItem('scam-detector-history')||'[]');
+    history.unshift({hostname:data.hostname,score:data.score,riskLevel:data.riskLevel,scanId:data.scanId,scannedAt:new Date().toISOString()});
+    localStorage.setItem('scam-detector-history',JSON.stringify(history.slice(0,8)));
+  }catch{/* Browser storage may be disabled; scanning still works. */}
+}
+</script>
+</body>
+</html>
