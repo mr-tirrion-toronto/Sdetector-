@@ -66,7 +66,7 @@ function redactUrlForStorage(rawUrl: string): string {
   return url.toString();
 }
 
-async function applyRateLimit(sql: ReturnType<typeof neon>, request: Request): Promise<boolean> {
+async function applyRateLimit(sql: any, request: Request): Promise<boolean> {
   const clientIp = request.headers.get("CF-Connecting-IP");
   if (!clientIp) return true; // Local development may not provide Cloudflare's client-IP header.
 
@@ -84,7 +84,7 @@ async function applyRateLimit(sql: ReturnType<typeof neon>, request: Request): P
     RETURNING request_count
   `;
 
-  const count = Number(rows[0]?.request_count ?? 0);
+  const count = Number((rows as unknown as Array<{ request_count: number }>)[0]?.request_count ?? 0);
   if (count === 1 && window % 6 === 0) {
     await sql`DELETE FROM scan_rate_limits WHERE created_at < NOW() - INTERVAL '1 day'`;
   }
