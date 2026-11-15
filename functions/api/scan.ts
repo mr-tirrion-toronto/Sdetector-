@@ -83,8 +83,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
             ${finding.recommendation})`;
       }
       saved = true;
-    } catch {
-      // Keep database credentials and internal errors out of public responses.
+    } catch (error) {
+      // Keep credentials and raw database errors out of public responses; retain diagnostics in server logs.
+      console.error("DATABASE_SCAN_WRITE_FAILED", error);
     }
   }
 
