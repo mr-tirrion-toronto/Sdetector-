@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public --project-name=scam-detector",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
