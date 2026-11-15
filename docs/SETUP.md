@@ -1,13 +1,12 @@
 # Local Setup
 
 ## Requirements
-
 - Node.js 22 or later
 - npm
-- A Cloudflare account for deployment
-- A Neon PostgreSQL project for scan persistence
+- Cloudflare account with Pages access
+- Neon PostgreSQL project
 
-## 1. Clone the repository
+## 1. Clone and install
 
 ```bash
 git clone https://github.com/mr-tirrion-toronto/Sdetector-.git
@@ -15,34 +14,22 @@ cd Sdetector-
 npm install
 ```
 
-## 2. Create the Neon database
+## 2. Prepare Neon
 
-1. Create a PostgreSQL project in Neon.
-2. Open the SQL Editor for that project.
-3. Run the complete contents of `migrations/0001_initial_schema.sql`.
-4. In the Neon connection details, select the pooled connection string if available.
-5. Keep the connection string private. Do not commit it or paste it into source files.
+The database schema is in `migrations/0001_initial_schema.sql`. It will be applied through the connected Neon database integration or Neon SQL Editor. Keep the connection string private.
 
-## 3. Configure the Worker secret
+## 3. Local Pages development
 
-For local development, create a `.dev.vars` file in the repository root:
+Create a `.dev.vars` file in the repository root:
 
 ```dotenv
 DATABASE_URL=your_private_neon_connection_string
 APP_ENV=development
 ```
 
-The `.dev.vars` file is ignored by Git. Never add the real connection string to `wrangler.toml`.
+The file is ignored by Git. Never commit credentials.
 
-For a deployed Worker, set the secret through Wrangler:
-
-```bash
-npx wrangler secret put DATABASE_URL
-```
-
-Paste the connection string only into the secure terminal prompt.
-
-## 4. Verify and run locally
+Run:
 
 ```bash
 npm run typecheck
@@ -50,27 +37,27 @@ npm test
 npm run dev
 ```
 
-Check the health endpoint at `http://localhost:8787/api/health`.
+The local site is served by Wrangler Pages. Check `/api/health` and submit a URL through the homepage.
 
-Submit a scan request:
+## 4. Cloudflare Pages deployment
 
-```bash
-curl -X POST http://localhost:8787/api/scan \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com"}'
-```
+Create a Pages project named `scam-detector` and connect this GitHub repository.
 
-## 5. Deploy
+Recommended build settings:
+- Framework preset: None
+- Build command: leave empty
+- Build output directory: `public`
+- Root directory: repository root
 
-Authenticate with Cloudflare, then run:
+In Cloudflare Pages > scam-detector > Settings > Environment variables, add `DATABASE_URL` as an encrypted secret for Production and Preview as needed. Do not put the connection string in source code or `wrangler.toml`.
+
+Alternatively, authenticate with Wrangler and deploy the Pages output:
 
 ```bash
 npx wrangler login
-npx wrangler deploy
+npm run deploy
 ```
 
-Set the `DATABASE_URL` Worker secret before using persistent scan history in production.
+## Current limitations
 
-## Important current limitation
-
-Version 0.1 performs URL-string heuristics only. It does not connect to or inspect the submitted website. Review `SCANNER_SCOPE.md` before presenting the result as a full website security scan.
+Version 0.1 performs URL-string heuristics only. It does not connect to submitted websites, follow redirects, inspect TLS certificates, query domain-age or reputation providers, or parse remote page content. Read `SCANNER_SCOPE.md` before describing it as a full website inspection.
