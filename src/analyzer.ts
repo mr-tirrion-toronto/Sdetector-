@@ -15,6 +15,8 @@ export interface ScanResult {
   hostname: string;
   score: number;
   riskLevel: "low" | "guarded" | "high" | "critical";
+  assessmentStatus: "insufficient_evidence" | "preliminary_signals_detected";
+  confidence: "limited";
   findings: Finding[];
   limitations: string[];
 }
@@ -30,15 +32,8 @@ const SUSPICIOUS_TERMS = [
   "signin", "webscr", "recover"
 ];
 
-function addFinding(
-  findings: Finding[],
-  code: string,
-  title: string,
-  severity: Severity,
-  points: number,
-  evidence: string,
-  recommendation: string
-): void {
+function addFinding(findings: Finding[], code: string, title: string, severity: Severity,
+  points: number, evidence: string, recommendation: string): void {
   findings.push({ code, title, severity, points, evidence, recommendation });
 }
 
@@ -70,7 +65,6 @@ export function analyzeUrl(input: string): ScanResult {
       "The URL uses HTTP rather than HTTPS.", "Avoid entering passwords or personal information on an unencrypted connection.");
   }
 
-  // An at-sign is deceptive only in the URL authority/userinfo section, not in a path or query value.
   const authority = trimmed.match(/^[a-zA-Z][a-zA-Z\d+.-]*:\/\/([^/?#]*)/);
   const hasUserInfoSyntax = authority?.[1].includes("@") ?? false;
   if (parsed.username || parsed.password || hasUserInfoSyntax) {
@@ -89,20 +83,20 @@ export function analyzeUrl(input: string): ScanResult {
   const bracketedIpv6 = hostname.startsWith("[") && hostname.endsWith("]");
   if (ipv4 || bracketedIpv6) {
     addFinding(findings, "IP_LITERAL_HOST", "Website uses an IP address", "medium", 12,
-      `The hostname is an IP literal: ${hostname}.`,
+      "The hostname is an IP literal: " + hostname + ".",
       "Confirm through a trusted source why the service is using a direct IP address.");
   }
 
   const labels = hostname.split(".");
   if (labels.length >= 5) {
     addFinding(findings, "MANY_SUBDOMAINS", "Unusually deep subdomain structure", "low", 8,
-      `The hostname contains ${labels.length} labels.`,
+      "The hostname contains " + labels.length + " labels.",
       "Focus on the registered domain, not just familiar words in subdomains.");
   }
 
   if (hostname.length > 50) {
     addFinding(findings, "LONG_HOSTNAME", "Unusually long hostname", "low", 6,
-      `The hostname is ${hostname.length} characters long.`,
+      "The hostname is " + hostname.length + " characters long.",
       "Check for unnecessary words or brand names inserted into the hostname.");
   }
 
@@ -112,21 +106,21 @@ export function analyzeUrl(input: string): ScanResult {
       "Only open the link if you trust the sender and can verify its final destination.");
   }
 
-  const searchable = `${parsed.pathname} ${parsed.search}`.toLowerCase();
+  const searchable = (parsed.pathname + " " + parsed.search).toLowerCase();
   const matchedTerms = SUSPICIOUS_TERMS.filter(term => searchable.includes(term));
   if (matchedTerms.length >= 2) {
     addFinding(findings, "SENSITIVE_ACTION_TERMS", "Multiple sensitive-action terms in URL", "medium", 12,
-      `Matched URL terms: ${matchedTerms.join(", ")}.`,
+      "Matched URL terms: " + matchedTerms.join(", ") + ".",
       "Treat unexpected login, verification or payment links with caution.");
   } else if (matchedTerms.length === 1) {
     addFinding(findings, "SENSITIVE_ACTION_TERM", "Sensitive-action term in URL", "low", 5,
-      `Matched URL term: ${matchedTerms[0]}.`,
+      "Matched URL term: " + matchedTerms[0] + ".",
       "A keyword alone does not prove fraud; verify the sender and domain.");
   }
 
   if (parsed.port && !["80", "443"].includes(parsed.port)) {
     addFinding(findings, "NONSTANDARD_PORT", "Non-standard web port", "low", 7,
-      `The URL specifies port ${parsed.port}.`,
+      "The URL specifies port " + parsed.port + ".",
       "Verify that this port is expected for the service.");
   }
 
@@ -139,11 +133,14 @@ export function analyzeUrl(input: string): ScanResult {
     hostname,
     score,
     riskLevel,
+    assessmentStatus: findings.length === 0 ? "insufficient_evidence" : "preliminary_signals_detected",
+    confidence: "limited",
     findings,
     limitations: [
-      "This is an initial URL-only heuristic assessment, not a verdict that a website is safe or fraudulent.",
-      "No DNS, domain-age, certificate, redirect-chain, reputation-feed or page-content checks are performed yet.",
-      "A low score does not guarantee safety. Confirm important links through an independently trusted channel."
+      "This is a preliminary URL-pattern assessment, not a verdict that a website is safe or fraudulent.",
+      "No live website fetch, DNS, domain-age, certificate, redirect-chain or third-party reputation checks are performed yet.",
+      "A score of 0 means no configured URL-pattern signals were detected; it does not mean the website is verified safe.",
+      "Assessment confidence is limited until independent reputation and live technical evidence are available."
     ]
   };
 }

@@ -26,7 +26,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       { headers }
     );
   } catch (error) {
-    console.error("DATABASE_HEALTH_CHECK_FAILED", error);
+    console.error("DATABASE_HEALTH_CHECK_FAILED", error instanceof Error ? error.name : "UnknownError");
     return Response.json(
       { status: "degraded", service: "scam-detector-api", platform: "cloudflare-pages", database: "unavailable" },
       { status: 503, headers }
