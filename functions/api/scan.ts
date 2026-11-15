@@ -131,50 +131,57 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ error: error instanceof Error ? error.message : "URL analysis failed." }, 400);
   }
 
+  if (!env.DATABASE_URL) {
+    return json({ error: "Scanner storage and abuse protection are temporarily unavailable." }, 503);
+  }
+
   const scanId = crypto.randomUUID();
-  let saved = false;
+  const sql = neon(env.DATABASE_URL);
 
-  if (env.DATABASE_URL) {
-    try {
-      const sql = neon(env.DATABASE_URL);
-      if (!(await applyRateLimit(sql, request))) {
-        return json(
-          { error: "Scan limit reached. Please wait a few minutes before trying again." },
-          429,
-          { "retry-after": String(RATE_WINDOW_SECONDS) }
-        );
-      }
-
-      const storedUrl = redactUrlForStorage(result.inputUrl);
-      const findingsJson = JSON.stringify(result.findings);
-      await sql`
-        WITH inserted_scan AS (
-          INSERT INTO scans
-            (id, input_url, normalized_url, hostname, risk_score, risk_level, created_at)
-          VALUES
-            (${scanId}, ${storedUrl}, ${storedUrl}, ${result.hostname},
-             ${result.score}, ${result.riskLevel}, NOW())
-          RETURNING id
-        ),
-        inserted_findings AS (
-          INSERT INTO scan_findings
-            (scan_id, code, title, severity, points, evidence, recommendation)
-          SELECT inserted_scan.id, finding.code, finding.title, finding.severity,
-                 finding.points, finding.evidence, finding.recommendation
-          FROM inserted_scan
-          CROSS JOIN LATERAL jsonb_to_recordset(${findingsJson}::jsonb)
-            AS finding(code TEXT, title TEXT, severity TEXT, points INTEGER,
-                       evidence TEXT, recommendation TEXT)
-          RETURNING id
-        )
-        SELECT
-          (SELECT COUNT(*) FROM inserted_scan) AS scans_saved,
-          (SELECT COUNT(*) FROM inserted_findings) AS findings_saved
-      `;
-      saved = true;
-    } catch (error) {
-      console.error("SCAN_PERSISTENCE_FAILED", error instanceof Error ? error.name : "UnknownError");
+  try {
+    if (!(await applyRateLimit(sql, request))) {
+      return json(
+        { error: "Scan limit reached. Please wait a few minutes before trying again." },
+        429,
+        { "retry-after": String(RATE_WINDOW_SECONDS) }
+      );
     }
+  } catch (error) {
+    console.error("SCAN_RATE_LIMIT_UNAVAILABLE", error instanceof Error ? error.name : "UnknownError");
+    return json({ error: "Scanner is temporarily unavailable. Please try again shortly." }, 503);
+  }
+
+  let saved = false;
+  try {
+    const storedUrl = redactUrlForStorage(result.inputUrl);
+    const findingsJson = JSON.stringify(result.findings);
+    await sql`
+      WITH inserted_scan AS (
+        INSERT INTO scans
+          (id, input_url, normalized_url, hostname, risk_score, risk_level, created_at)
+        VALUES
+          (${scanId}, ${storedUrl}, ${storedUrl}, ${result.hostname},
+           ${result.score}, ${result.riskLevel}, NOW())
+        RETURNING id
+      ),
+      inserted_findings AS (
+        INSERT INTO scan_findings
+          (scan_id, code, title, severity, points, evidence, recommendation)
+        SELECT inserted_scan.id, finding.code, finding.title, finding.severity,
+               finding.points, finding.evidence, finding.recommendation
+        FROM inserted_scan
+        CROSS JOIN LATERAL jsonb_to_recordset(${findingsJson}::jsonb)
+          AS finding(code TEXT, title TEXT, severity TEXT, points INTEGER,
+                     evidence TEXT, recommendation TEXT)
+        RETURNING id
+      )
+      SELECT
+        (SELECT COUNT(*) FROM inserted_scan) AS scans_saved,
+        (SELECT COUNT(*) FROM inserted_findings) AS findings_saved
+    `;
+    saved = true;
+  } catch (error) {
+    console.error("SCAN_PERSISTENCE_FAILED", error instanceof Error ? error.name : "UnknownError");
   }
 
   return json({
