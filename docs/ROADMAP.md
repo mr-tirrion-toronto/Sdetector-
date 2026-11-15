@@ -1,42 +1,40 @@
 # Product Roadmap
 
-## Phase 0 — Project foundation
-- [x] Establish repository and project documentation
-- [x] Confirm existing Apache License 2.0
-- [x] Add security disclosure guidance
-- [ ] Confirm database provider and provision development database
-- [ ] Confirm runtime/framework and CI checks
-- [ ] Add environment-variable template and deployment configuration
+## Phase 0 — Foundation
+- [x] Repository, documentation and Apache 2.0 license
+- [x] Cloudflare Pages + Pages Functions deployment
+- [x] Neon database persistence and health check
+- [x] GitHub Actions typecheck and unit tests
+- [x] Project-specific security engineering skill
+- [x] Correct URL authority user-info detection
+- [x] Unknown / insufficient-evidence result state
+- [x] Request body limit, URL privacy minimization and atomic persistence
+- [x] Dependabot and CodeQL workflows
 
-## Phase 1 — Reliable scan engine
-- [ ] URL canonicalization and validation
-- [ ] SSRF-safe DNS resolution and outbound fetch controls
-- [ ] TLS certificate and HTTP response inspection
-- [ ] Redirect-chain analysis
-- [ ] Domain age and DNS intelligence adapters
-- [ ] Structured evidence model and unit tests
+## Phase 1 — Evidence and API security
+- [ ] Configure and validate a licensed phishing-reputation provider
+- [ ] Add rate limiting and abuse controls
+- [ ] Add scan-history access model and pagination
+- [ ] Add audit trail and provider freshness indicators
 
-## Phase 2 — Risk intelligence
-- [ ] Versioned, explainable 0–100 scoring model
-- [ ] Confidence and data freshness indicators
-- [ ] Phishing and impersonation heuristics
-- [ ] Reputation provider adapters
-- [ ] Safe handling of unknown and conflicting results
+## Phase 2 — Domain intelligence
+- [ ] DNS A/AAAA/MX/NS/CAA intelligence
+- [ ] RDAP registration-age checks
+- [ ] TLS certificate intelligence
+- [ ] Redirect-chain analysis after SSRF safety review
 
-## Phase 3 — User experience
-- [ ] Responsive investigation dashboard
+## Phase 3 — Website intelligence
+- [ ] Static page-content inspection in a constrained, isolated design
+- [ ] Suspicious forms and credential-harvesting indicators
+- [ ] Brand impersonation and lookalike-domain analysis
+
+## Phase 4 — Investigation workspace
 - [ ] Scan history and comparison
-- [ ] Evidence timeline and relationship visualization
-- [ ] PDF report generation
-- [ ] User feedback and moderated community reports
-
-## Phase 4 — Advanced features
-- [ ] Watchlists and scheduled re-scans
-- [ ] Change monitoring
-- [ ] Scam DNA correlation
-- [ ] Brand impersonation radar
-- [ ] Investigation graph
-- [ ] Public API with authentication, quotas and documentation
+- [ ] Evidence timeline
+- [ ] PDF investigation reports
+- [ ] Change monitoring and watchlists
+- [ ] Scam relationship graph and community reporting
 
 ## Release gates
-A feature is not production-ready until it has tests, safe failure behaviour, abuse controls, documented limitations and deployment verification. Risk labels must not claim certainty beyond the evidence available.
+
+A feature is not production-ready until it has tests, safe failure behaviour, abuse controls, documented limitations, provider/legal review where relevant, and deployment verification. A low or empty score must never imply safety beyond the evidence available.
