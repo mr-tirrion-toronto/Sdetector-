@@ -70,52 +70,64 @@ export function analyzeUrl(input: string): ScanResult {
       "The URL uses HTTP rather than HTTPS.", "Avoid entering passwords or personal information on an unencrypted connection.");
   }
 
-  if (parsed.username || parsed.password || trimmed.includes("@")) {
+  // An at-sign is deceptive only in the URL authority/userinfo section, not in a path or query value.
+  const authority = trimmed.match(/^[a-zA-Z][a-zA-Z\d+.-]*:\/\/([^/?#]*)/);
+  const hasUserInfoSyntax = authority?.[1].includes("@") ?? false;
+  if (parsed.username || parsed.password || hasUserInfoSyntax) {
     addFinding(findings, "URL_CREDENTIALS_OR_AT", "Potentially deceptive URL syntax", "high", 25,
-      "The URL contains user-information syntax or an @ character. This can disguise the actual destination.", "Inspect the hostname carefully and do not sign in unless the destination is independently verified.");
+      "The URL authority contains user-information syntax. This can disguise the actual destination.",
+      "Inspect the hostname carefully and do not sign in unless the destination is independently verified.");
   }
 
   if (hostname.startsWith("xn--") || hostname.includes(".xn--")) {
     addFinding(findings, "PUNYCODE_HOST", "Internationalized hostname detected", "medium", 15,
-      "The hostname contains a punycode label. This is not automatically malicious, but can be used for lookalike domains.", "Compare the displayed domain character by character with the organisation's official domain.");
+      "The hostname contains a punycode label. This is not automatically malicious, but can be used for lookalike domains.",
+      "Compare the displayed domain character by character with the organisation's official domain.");
   }
 
   const ipv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname);
   const bracketedIpv6 = hostname.startsWith("[") && hostname.endsWith("]");
   if (ipv4 || bracketedIpv6) {
     addFinding(findings, "IP_LITERAL_HOST", "Website uses an IP address", "medium", 12,
-      `The hostname is an IP literal: ${hostname}.`, "Confirm through a trusted source why the service is using a direct IP address.");
+      `The hostname is an IP literal: ${hostname}.`,
+      "Confirm through a trusted source why the service is using a direct IP address.");
   }
 
   const labels = hostname.split(".");
   if (labels.length >= 5) {
     addFinding(findings, "MANY_SUBDOMAINS", "Unusually deep subdomain structure", "low", 8,
-      `The hostname contains ${labels.length} labels.`, "Focus on the registered domain, not just familiar words in subdomains.");
+      `The hostname contains ${labels.length} labels.`,
+      "Focus on the registered domain, not just familiar words in subdomains.");
   }
 
   if (hostname.length > 50) {
     addFinding(findings, "LONG_HOSTNAME", "Unusually long hostname", "low", 6,
-      `The hostname is ${hostname.length} characters long.`, "Check for unnecessary words or brand names inserted into the hostname.");
+      `The hostname is ${hostname.length} characters long.`,
+      "Check for unnecessary words or brand names inserted into the hostname.");
   }
 
   if (SHORTENERS.has(hostname)) {
     addFinding(findings, "URL_SHORTENER", "URL shortening service detected", "medium", 12,
-      "The hostname belongs to a known URL-shortening service; the final destination is not visible in this scan.", "Only open the link if you trust the sender and can verify its final destination.");
+      "The hostname belongs to a known URL-shortening service; the final destination is not visible in this scan.",
+      "Only open the link if you trust the sender and can verify its final destination.");
   }
 
   const searchable = `${parsed.pathname} ${parsed.search}`.toLowerCase();
   const matchedTerms = SUSPICIOUS_TERMS.filter(term => searchable.includes(term));
   if (matchedTerms.length >= 2) {
     addFinding(findings, "SENSITIVE_ACTION_TERMS", "Multiple sensitive-action terms in URL", "medium", 12,
-      `Matched URL terms: ${matchedTerms.join(", ")}.`, "Treat unexpected login, verification or payment links with caution.");
+      `Matched URL terms: ${matchedTerms.join(", ")}.`,
+      "Treat unexpected login, verification or payment links with caution.");
   } else if (matchedTerms.length === 1) {
     addFinding(findings, "SENSITIVE_ACTION_TERM", "Sensitive-action term in URL", "low", 5,
-      `Matched URL term: ${matchedTerms[0]}.`, "A keyword alone does not prove fraud; verify the sender and domain.");
+      `Matched URL term: ${matchedTerms[0]}.`,
+      "A keyword alone does not prove fraud; verify the sender and domain.");
   }
 
   if (parsed.port && !["80", "443"].includes(parsed.port)) {
     addFinding(findings, "NONSTANDARD_PORT", "Non-standard web port", "low", 7,
-      `The URL specifies port ${parsed.port}.`, "Verify that this port is expected for the service.");
+      `The URL specifies port ${parsed.port}.`,
+      "Verify that this port is expected for the service.");
   }
 
   const score = Math.min(100, findings.reduce((sum, finding) => sum + finding.points, 0));
