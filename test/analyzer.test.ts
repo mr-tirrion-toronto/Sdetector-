@@ -1,44 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { analyzeUrl } from "../src/analyzer";
-
-describe("analyzeUrl", () => {
-  it("rejects invalid and unsupported URLs", () => {
-    expect(() => analyzeUrl("not a url")).toThrow();
-    expect(() => analyzeUrl("ftp://example.com")).toThrow();
-  });
-
-  it("returns a low-risk heuristic result for a plain HTTPS URL", () => {
-    const result = analyzeUrl("https://example.com/about");
-    expect(result.hostname).toBe("example.com");
-    expect(result.score).toBe(0);
-    expect(result.riskLevel).toBe("low");
-  });
-
-  it("flags HTTP and sensitive URL terms", () => {
-    const result = analyzeUrl("http://example.com/login/verify");
-    expect(result.findings.map(item => item.code)).toContain("NO_HTTPS");
-    expect(result.findings.map(item => item.code)).toContain("SENSITIVE_ACTION_TERMS");
-    expect(result.score).toBeGreaterThan(0);
-  });
-
-  it("flags user information in the URL authority", () => {
-    const result = analyzeUrl("https://user:password@example.com/login");
-    expect(result.findings.map(item => item.code)).toContain("URL_CREDENTIALS_OR_AT");
-  });
-
-  it("flags an empty user-information authority marker", () => {
-    const result = analyzeUrl("https://@example.com/");
-    expect(result.findings.map(item => item.code)).toContain("URL_CREDENTIALS_OR_AT");
-  });
-
-  it("does not flag at-signs in ordinary path or query values", () => {
-    const result = analyzeUrl("https://example.com/contact/user@example.com?email=help@example.com");
-    expect(result.findings.map(item => item.code)).not.toContain("URL_CREDENTIALS_OR_AT");
-  });
-
-  it("does not call the website or execute remote content", () => {
-    const result = analyzeUrl("https://bit.ly/login");
-    expect(result.findings.map(item => item.code)).toContain("URL_SHORTENER");
-    expect(result.limitations.length).toBeGreaterThan(0);
-  });
+import {describe,expect,it} from "vitest";
+import {analyzeUrl} from "../src/analyzer";
+describe("analyzeUrl",()=>{
+ it("rejects invalid and unsupported URLs",()=>{expect(()=>analyzeUrl("not a url")).toThrow();expect(()=>analyzeUrl("ftp://example.com")).toThrow()});
+ it("marks clean-looking URLs unverified when evidence is insufficient",()=>{const r=analyzeUrl("https://example.com/about");expect(r.hostname).toBe("example.com");expect(r.score).toBe(0);expect(r.riskLevel).toBe("unknown");expect(r.assessmentStatus).toBe("insufficient_evidence");expect(r.limitations.some(x=>x.includes("not verified safe"))).toBe(true)});
+ it("does not describe zero heuristic points as low risk",()=>{const r=analyzeUrl("https://scam-detector-a92.pages.dev/");expect(r.score).toBe(0);expect(r.riskLevel).toBe("unknown");expect(r.assessmentStatus).toBe("insufficient_evidence")});
+ it("flags HTTP and sensitive URL terms",()=>{const r=analyzeUrl("http://example.com/login/verify");expect(r.findings.map(x=>x.code)).toContain("NO_HTTPS");expect(r.findings.map(x=>x.code)).toContain("SENSITIVE_ACTION_TERMS");expect(r.score).toBeGreaterThan(0);expect(r.assessmentStatus).toBe("preliminary")});
+ it("flags user information in the URL authority",()=>{expect(analyzeUrl("https://user:password@example.com/login").findings.map(x=>x.code)).toContain("URL_CREDENTIALS_OR_AT")});
+ it("flags an empty user-information authority marker",()=>{expect(analyzeUrl("https://@example.com/").findings.map(x=>x.code)).toContain("URL_CREDENTIALS_OR_AT")});
+ it("does not flag at-signs in ordinary path or query values",()=>{expect(analyzeUrl("https://example.com/contact/user@example.com?email=help@example.com").findings.map(x=>x.code)).not.toContain("URL_CREDENTIALS_OR_AT")});
+ it("does not call the website or execute remote content",()=>{const r=analyzeUrl("https://bit.ly/login");expect(r.findings.map(x=>x.code)).toContain("URL_SHORTENER");expect(r.limitations.length).toBeGreaterThan(0)});
 });
