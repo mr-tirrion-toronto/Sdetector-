@@ -1,0 +1,6 @@
+name = "scam-detector-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-16"
+
+[vars]
+APP_ENV = "development"
