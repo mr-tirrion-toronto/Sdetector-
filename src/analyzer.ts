@@ -1,5 +1,5 @@
 export type Severity = "info" | "low" | "medium" | "high";
-export type AssessmentStatus = "insufficient_evidence" | "preliminary" | "verified_threat";
+export type AssessmentStatus = "insufficient_evidence" | "preliminary" | "threat_intel_match";
 export type RiskLevel = "unknown" | "low" | "guarded" | "high" | "critical";
 export interface Finding { code:string; title:string; severity:Severity; points:number; evidence:string; recommendation:string; source?:string }
 export interface ScanResult { inputUrl:string; normalizedUrl:string; hostname:string; score:number; riskLevel:RiskLevel; assessmentStatus:AssessmentStatus; findings:Finding[]; limitations:string[] }
