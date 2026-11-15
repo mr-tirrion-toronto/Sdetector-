@@ -49,7 +49,7 @@ The local site is served by Wrangler Pages. Check `/api/health` and submit a URL
 ## 4. Cloudflare Pages production
 
 The Cloudflare Pages project has been created:
-- Project: `scam-detector`
+- Project: `mr-tirrion-scam-detector`
 - Production branch: `main`
 - Build command: `npm install --no-audit --no-fund`
 - Build output directory: `public`
@@ -62,7 +62,7 @@ The project is connected to the GitHub repository above. New commits to `main` t
 
 In the Cloudflare mobile dashboard:
 1. Open **Workers & Pages**.
-2. Select **scam-detector**.
+2. Select **mr-tirrion-scam-detector**.
 3. Open **Settings** → **Variables and Secrets**.
 4. Under **Production**, choose **Add**.
 5. Set the variable name to `DATABASE_URL`.
