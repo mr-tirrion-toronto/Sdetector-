@@ -1,7 +1,7 @@
 # Setup and Deployment
 
 ## Requirements
-- Node.js 22 or later
+- Node.js 24 or later
 - npm
 - Cloudflare account with Pages access
 - Neon PostgreSQL project
@@ -54,7 +54,7 @@ The Cloudflare Pages project has been created:
 - Build command: `npm install --no-audit --no-fund`
 - Build output directory: `public`
 - Root directory: repository root
-- Node.js: `22`
+- Node.js: `24`
 
 The project is connected to the GitHub repository above. New commits to `main` trigger production deployments.
 
