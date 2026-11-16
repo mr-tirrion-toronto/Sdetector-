@@ -1,5 +1,6 @@
 export interface PhishDestroyInvestigation {
   status: "available" | "unavailable" | "rate_limited";
+  errorCode: string | null;
   checkedAt: string | null;
   verdict: {
     status: "listed" | "whitelisted" | "not_listed" | "unknown";
@@ -17,6 +18,7 @@ export interface PhishDestroyInvestigation {
   assessment: {
     risk: string;
     score: number;
+    maxScore: number;
     signals: string[];
   } | null;
   infrastructure: {
@@ -77,8 +79,8 @@ export async function investigateDomain(
       redirect: "error",
       signal: AbortSignal.timeout(6500)
     });
-    if (response.status === 429) return { ...unavailable(), status: "rate_limited" };
-    if (!response.ok) return unavailable();
+    if (response.status === 429) return { ...unavailable("HTTP_429"), status: "rate_limited" };
+    if (!response.ok) return unavailable("HTTP_" + response.status);
     const payload = await readJsonLimited(response);
     if (!isRecord(payload) || !isRecord(payload.verdict)) return unavailable();
 
@@ -93,6 +95,7 @@ export async function investigateDomain(
 
     return {
       status: "available",
+      errorCode: null,
       checkedAt: safeString(payload.checked_at, 64),
       verdict: {
         status: verdict.status === "listed" || verdict.status === "whitelisted" || verdict.status === "not_listed"
@@ -110,7 +113,8 @@ export async function investigateDomain(
       },
       assessment: assessment ? {
         risk: safeString(assessment.risk, 32) ?? "unknown",
-        score: Math.max(0, Math.min(100, safeNumber(assessment.score) ?? 0)),
+        score: Math.max(0, safeNumber(assessment.score) ?? 0),
+        maxScore: Math.max(1, safeNumber(assessment.max_score) ?? 100),
         signals: Array.isArray(assessment.signals)
           ? assessment.signals.filter(isRecord).map(signal => safeString(signal.signal, 80)).filter((value): value is string => Boolean(value)).slice(0, 12)
           : []
@@ -133,14 +137,15 @@ export async function investigateDomain(
       } : null,
       related
     };
-  } catch {
-    return unavailable();
+  } catch (error) {
+    const code = error instanceof Error ? error.name : "UNKNOWN_ERROR";
+    return unavailable(code.slice(0, 40));
   }
 }
 
-function unavailable(): PhishDestroyInvestigation {
+function unavailable(errorCode = "PROVIDER_UNAVAILABLE"): PhishDestroyInvestigation {
   return {
-    status: "unavailable", checkedAt: null, verdict: null, assessment: null,
+    status: "unavailable", errorCode, checkedAt: null, verdict: null, assessment: null,
     infrastructure: null, registration: null, campaign: null, related: []
   };
 }
