@@ -1,94 +1,85 @@
 # Scam Detector
 
-**Scam Detector** is a web-based threat-intelligence and website-investigation platform designed to help people assess suspicious URLs and understand the evidence behind a website risk assessment.
+**Scam Detector** is a live website-risk investigation platform. It combines URL-pattern analysis, domain reputation, DNS, TLS certificate inspection, registration information, public page-content signals and local threat-feed matching.
 
-> **Important:** Scam Detector is a decision-support tool, not a guarantee that a website is safe or malicious. A low-risk result does not prove safety, and a high-risk result should be reviewed in context.
+> **Important:** Scam Detector is a decision-support tool, not a guarantee that a website is safe or malicious. A low score, a missing feed match or an unavailable provider does not prove safety.
 
-## Project goals
-- Inspect URLs and domains before users visit them.
-- Identify phishing indicators, impersonation patterns, suspicious redirects and risky domain characteristics.
-- Evaluate TLS/SSL configuration, DNS information, domain age and available reputation signals.
-- Analyse page content for suspicious language, credential-harvesting patterns and deceptive behaviour.
-- Produce transparent risk scores with evidence, confidence and explanations.
-- Generate downloadable investigation reports (PDF).
-- Let registered users save, compare and monitor investigations.
-- Build privacy-conscious, explainable threat intelligence from verified community reports.
+## Live capabilities
 
-## Planned capabilities
+### URL and domain analysis
+- Strict HTTP/HTTPS URL parsing and normalization.
+- Signals for deceptive URL syntax, punycode, IP literals, deep subdomains, shorteners, sensitive-action terms and non-standard ports.
+- Keyless PhishDestroy investigation for confirmed threat listings, separate risk-pattern predictions, infrastructure, campaign context and related domains when available.
+- Explainable findings, risk indicator, recommendations and data-source status.
 
-### Website and URL intelligence
-- URL normalization and parsing, including encoded and internationalized domain names.
-- Domain and subdomain analysis, DNS records, registration age where reliable data is available.
-- TLS certificate validity, issuer, expiry and hostname matching.
-- HTTP response, redirect-chain and security-header inspection.
-- Reputation checks against supported threat-intelligence providers.
-- Detection of lookalike domains, brand impersonation and suspicious URL patterns.
+### Live technical checks
+- Public DNS A, AAAA, MX, NS and TXT lookups through Cloudflare DNS-over-HTTPS.
+- Live HTTPS certificate and chain validation through Trustico SSL Tools, including subject, issuer, validity, signature/public-key details and chain problems. Successful results are cached for 12 hours because the provider documents a shared 100 requests/hour limit.
+- Certificate Transparency issuance history from crt.sh, shown separately from the live certificate check.
+- RDAP registration date, registrar and approximate domain age when available.
+- Public page-content inspection through Jina Reader for credential requests, suspicious forms, urgent account-pressure wording, prize lures, crypto-wallet secrets and payment-data language.
+- The content reader receives only the hostname and path. Query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Non-standard ports are not sent to the reader.
+- Redirect reporting compares the final URL reported by the reader with the submitted hostname. It is not a complete network-level redirect trace.
 
-### Evidence-based risk assessment
-- A 0–100 risk score with clearly documented contributing signals.
-- Verdicts: **Low risk**, **Suspicious**, and **High risk**.
-- Separate confidence indicator and data-source timestamps.
-- Evidence timeline, findings grouped by severity, and practical recommendations.
-- Explicit handling of missing, stale or conflicting intelligence.
+### Accounts and API keys
+- Signup, login and logout.
+- Salted PBKDF2-SHA256 password hashes and secure HttpOnly session cookies.
+- Private per-user scan history.
+- Create, list and revoke API keys. The raw key is shown once; only its hash is stored.
+- Up to 10 active API keys per account.
+- API scan requests can be authenticated using `Authorization: Bearer sd_live_...`.
 
-### Investigation workspace
-- Search and filter previous scans.
-- Compare two investigations and highlight changes.
-- Watchlists and re-scan scheduling.
-- PDF reports with methodology, findings, evidence references and limitations.
-- Community submissions with abuse prevention and moderation.
+Open the account workspace at `/account.html`.
 
-### Advanced research features
-- **Scam DNA:** correlate domains using observable infrastructure and behavioural similarities.
-- **Brand Impersonation Radar:** flag suspicious lookalikes of known brands.
-- **Relationship Graph:** visualize supported relationships among domains, IPs, certificates and redirect destinations.
-- **Change Watch:** detect meaningful changes between scans.
-- **Evidence Timeline:** show when each observation was collected.
+### Dashboard and reports
+- `/dashboard.html` shows aggregate scan counts, risk distribution, recent activity and threat-feed health without exposing submitted URLs.
+- `/report.html` creates a print-ready A4 investigation report with plain-language findings, live evidence, recommendations and limitations.
+- Use the browser's Print / Save as PDF action to create the PDF.
 
-These are planned capabilities. A feature will only be described as operational after it has been implemented and tested.
+## Threat-intelligence feeds
 
-## How to use the system
-When the public service is available:
-1. Open the Scam Detector website.
-2. Paste the complete URL you want to investigate.
-3. Start the scan and wait for the analysis to finish.
-4. Review the verdict, risk score, confidence and individual evidence items.
-5. Open the technical findings to understand why a signal was raised.
-6. Download the PDF report or save the investigation if your account supports it.
-7. If you believe a result is wrong, submit feedback with supporting evidence.
+The repository contains a separate Cloudflare Cron Worker that imports:
+- **Phishunt** — keyless public phishing-domain feed released under CC0 1.0.
+- **URLhaus** — optional authenticated integration.
+- **PhishTank** — optional authenticated integration.
 
-**Do not enter passwords, payment details, private tokens or other secrets into a URL or investigation form.** Do not visit a suspicious website merely to verify a result.
+Indicators are normalized and hashed before storage. Raw feed URLs are not stored. Expired indicators are excluded from matching.
 
-## Technology direction
-The initial architecture is planned around:
-- **Frontend and edge runtime:** Cloudflare Pages / Workers.
-- **Relational database:** Neon Postgres (proposed; connection setup pending).
-- **PDF reports:** generated by a controlled server-side report service.
-- **Threat intelligence:** provider adapters so data sources can be added or replaced without coupling the core scoring engine to one vendor.
+**Deployment state:** the Phishunt importer and five-minute Cron configuration are implemented, and the production database schema supports Phishunt. The separate feed Worker still needs to be deployed and given its encrypted `DATABASE_URL` secret. Cloudflare Pages secrets do not automatically transfer to a separate Worker. Follow [feed-worker/README.md](feed-worker/README.md). Until its first successful sync, the dashboard reports no successful feed sync.
 
-The final stack and integrations will be documented as they are implemented. API keys and database credentials must be stored as server-side secrets and must never be committed to this repository.
+## How to use the scanner
+1. Open the public scanner.
+2. Paste the URL you want to investigate without visiting it first.
+3. Wait for the URL, domain, DNS, TLS, registration, content and threat-intelligence checks.
+4. Review each finding and its evidence.
+5. Create an account if you want private scan history and API-key management.
+6. Print or save the investigation report as PDF.
 
-## Security design principles
-Website scanning is a security-sensitive feature. The scanner must:
-- Block loopback, private, link-local, multicast and reserved IP ranges.
-- Resolve and validate DNS safely, including protection against DNS rebinding.
-- Revalidate every redirect destination before following it.
-- Restrict protocols, ports, response sizes, content types and scan duration.
-- Never execute fetched page scripts or download arbitrary files.
-- Use isolated, resource-limited analysis workers.
-- Rate-limit requests and protect the service against abuse.
-- Avoid exposing internal network details in reports or error messages.
-- Keep secrets server-side and apply least-privilege access.
-- Record evidence provenance and timestamps for explainable results.
+**Never submit passwords, payment details, one-time codes, recovery phrases or private tokens.** Do not visit a suspicious website just to verify a scan result.
 
-## Development status
-This repository is the project home. Features are considered **planned** until source code, tests and deployment checks demonstrate that they work. See [the roadmap](docs/ROADMAP.md) and [the architecture notes](docs/ARCHITECTURE.md).
+## Technology
+- Cloudflare Pages and Pages Functions.
+- Neon Postgres.
+- TypeScript and the Neon serverless driver.
+- Cloudflare Cron Worker for scheduled threat-feed ingestion.
+- Browser print-to-PDF reports.
+
+## Security boundaries and known limitations
+- The scanner does not execute submitted-site JavaScript or download files. It is not a full malware sandbox.
+- TLS details are obtained from the Trustico SSL Tools provider; certificate-transparency history is a separate data source.
+- The content reader is a third-party service. Only public hostname/path data is sent to it, and returned page text is treated as untrusted input.
+- Redirect reporting uses the reader's reported final URL, not a complete redirect-by-redirect trace.
+- Email verification and password-reset flows are not configured because no email delivery provider is connected.
+- Feed auto-refresh is not active until the separate Worker has been deployed with its database secret.
+- A 0–100 score is a rule-based/provider risk indicator, not a calibrated probability.
+
+See [Scanner Scope](docs/SCANNER_SCOPE.md), [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/ROADMAP.md) and [Security Policy](SECURITY.md).
 
 ## Responsible use
-Use Scam Detector only for lawful defensive research, fraud prevention and user protection. Only submit URLs you are authorized to investigate. Do not use the service to probe internal systems, bypass access controls, disrupt websites or collect personal information.
+Use Scam Detector for lawful defensive research, fraud prevention and user protection. Only submit URLs you are authorized to investigate. Do not use the service to probe internal systems, bypass access controls, disrupt websites or collect personal information.
 
 ## License
-This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).
 
 ## Security reports
-Please do not publish exploitable vulnerabilities, credentials or private user data in public issues. Follow [SECURITY.md](SECURITY.md) for responsible disclosure.
+Do not publish exploitable vulnerabilities, credentials or private user data in public issues. Follow [SECURITY.md](SECURITY.md) for responsible disclosure.
