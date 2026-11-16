@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { inspectLiveDomain } from "../src/live-inspection";
 
-function providers(options: { firecrawlStatus?: number; address?: string } = {}) {
+function providers(options: { firecrawlStatus?: number; address?: string; sans?: string[]; ctNames?: string[] } = {}) {
   let requestedUrl = "";
+  let requestedRdapUrl = "";
+  let requestedCtDomain = "";
   const fetcher: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url === "https://tools.trustico.com/api/chain/analyze-url") {
@@ -10,7 +12,7 @@ function providers(options: { firecrawlStatus?: number; address?: string } = {})
         subject: { commonName: "example.com" }, issuer: { commonName: "Example CA" },
         notBefore: "2026-01-01T00:00:00Z", notAfter: "2027-01-01T00:00:00Z",
         isExpired: false, daysUntilExpiry: 46, signatureAlgorithm: "ecdsa-with-SHA256",
-        publicKey: { algorithm: "ECC", bits: 256 }
+        publicKey: { algorithm: "ECC", bits: 256 }, extensions: { subjectAltName: (options.sans ?? ["example.com"]).map(value => ({ type: "dns", value })) }
       }, chain: [{}, {}], validation: { chainComplete: true, problems: [] } } });
     }
     if (url.startsWith("https://cloudflare-dns.com/")) {
@@ -20,12 +22,14 @@ function providers(options: { firecrawlStatus?: number; address?: string } = {})
         : [] });
     }
     if (url.startsWith("https://api.certspotter.com/v1/issuances")) {
-      return Response.json([{ not_before: "2026-01-01T00:00:00Z", not_after: "2027-01-01T00:00:00Z", dns_names: ["example.com"] }]);
+      requestedCtDomain = new URL(url).searchParams.get("domain") ?? "";
+      return Response.json([{ not_before: "2026-01-01T00:00:00Z", not_after: "2027-01-01T00:00:00Z", dns_names: options.ctNames ?? ["example.com"] }]);
     }
     if (url === "https://data.iana.org/rdap/dns.json") {
       return Response.json({ services: [[["com"], ["https://rdap.verisign.com/com/v1/"]]] });
     }
     if (url.startsWith("https://rdap.verisign.com/com/v1/domain/")) {
+      requestedRdapUrl = url;
       return Response.json({ events: [{ eventAction: "registration", eventDate: "2026-01-01T00:00:00Z" }], entities: [] });
     }
     if (url === "https://api.firecrawl.dev/v2/scrape") {
@@ -36,12 +40,12 @@ function providers(options: { firecrawlStatus?: number; address?: string } = {})
       }
       return Response.json({ success: true, data: {
         html: '<form><input type="password"></form> Verify your account immediately',
-        metadata: { title: "Account verification", url: "https://example.com/login", statusCode: 200, contentType: "text/html" }
+        metadata: { title: "Account verification", url: body.url, statusCode: 200, contentType: "text/html" }
       } });
     }
     throw new Error("Unexpected provider URL: " + url);
   };
-  return { fetcher, getRequestedUrl: () => requestedUrl };
+  return { fetcher, getRequestedUrl: () => requestedUrl, getRequestedRdapUrl: () => requestedRdapUrl, getRequestedCtDomain: () => requestedCtDomain };
 }
 
 describe("inspectLiveDomain", () => {
@@ -53,7 +57,11 @@ describe("inspectLiveDomain", () => {
     expect(result.certificateTransparency.status).toBe("available");
     expect(result.tls.status).toBe("available");
     expect(result.tls.data?.chainComplete).toBe(true);
+    expect(result.tls.data?.hostnameMatch).toBe(true);
+    expect(result.tls.data?.subjectAltNames).toContain("example.com");
     expect(result.registration.status).toBe("available");
+    expect(result.registration.data?.queriedDomain).toBe("example.com");
+    expect(result.certificateTransparency.data?.found).toBe(true);
     expect(result.websiteContent.status).toBe("available");
     expect(result.websiteContent.data?.source).toBe("Firecrawl keyless scrape");
     expect(result.websiteContent.data?.indicators).toContain("password_input");
@@ -61,6 +69,25 @@ describe("inspectLiveDomain", () => {
     expect(result.websiteContent.data?.indicators).toContain("urgent_account_pressure");
     expect(result.findings.map(f => f.code)).toContain("LIVE_PASSWORD_INPUT");
     expect(mock.getRequestedUrl()).toBe("https://example.com/login");
+  });
+
+  it("uses the registrable domain for RDAP and CT while validating TLS against the exact hostname", async () => {
+    const mock = providers({ sans: ["*.toscrape.com"], ctNames: ["*.toscrape.com", "toscrape.com"] });
+    const result = await inspectLiveDomain("https://quotes.toscrape.com/login", "quotes.toscrape.com", mock.fetcher);
+    expect(result.registrableDomain).toBe("toscrape.com");
+    expect(result.certificateTransparency.data?.queriedDomain).toBe("toscrape.com");
+    expect(result.registration.data?.queriedDomain).toBe("toscrape.com");
+    expect(mock.getRequestedRdapUrl()).toContain("/domain/toscrape.com");
+    expect(mock.getRequestedCtDomain()).toBe("toscrape.com");
+    expect(result.tls.data?.hostnameMatch).toBe(true);
+    expect(result.findings.map(f => f.code)).not.toContain("TLS_HOSTNAME_MISMATCH");
+  });
+
+  it("raises a finding when the live TLS certificate SAN does not cover the hostname", async () => {
+    const mock = providers({ sans: ["unrelated.example.net"] });
+    const result = await inspectLiveDomain("https://example.com/", "example.com", mock.fetcher);
+    expect(result.tls.data?.hostnameMatch).toBe(false);
+    expect(result.findings.map(f => f.code)).toContain("TLS_HOSTNAME_MISMATCH");
   });
 
   it("does not forward query strings, fragments or credentials to the content provider", async () => {

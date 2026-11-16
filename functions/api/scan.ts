@@ -182,7 +182,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   let cachedTls: TlsData | null = null;
   try {
     const cacheRows = await sql`SELECT tls_data FROM domain_tls_cache WHERE hostname = ${result.hostname} AND expires_at > NOW() LIMIT 1`;
-    cachedTls = ((cacheRows as Array<{tls_data:TlsData}>)[0]?.tls_data ?? null);
+    const cachedCandidate = (cacheRows as Array<{tls_data:TlsData}>)[0]?.tls_data ?? null;
+    if (cachedCandidate && Array.isArray(cachedCandidate.subjectAltNames) &&
+      Object.prototype.hasOwnProperty.call(cachedCandidate, "hostnameMatch")) {
+      cachedTls = cachedCandidate;
+    }
   } catch (error) {
     console.error("TLS_CACHE_READ_FAILED", error instanceof Error ? error.name : "UnknownError");
   }

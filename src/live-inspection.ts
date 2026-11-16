@@ -1,14 +1,16 @@
 import type { Finding } from "./analyzer";
+import { getDomain } from "tldts";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 interface Check<T> { status: "available" | "unavailable" | "not_checked"; errorCode: string | null; data: T | null }
 interface DnsData { records: Array<{type:string;value:string;ttl:number|null}>; dnssec: boolean|null }
-interface CertificateData { source:string; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }
-export interface TlsData { subject:string|null; issuer:string|null; notBefore:string|null; notAfter:string|null; expired:boolean|null; daysUntilExpiry:number|null; signatureAlgorithm:string|null; publicKeyAlgorithm:string|null; publicKeyBits:number|null; chainLength:number; chainComplete:boolean|null; problems:string[] }
-interface RegistrationData { createdAt:string|null; registrar:string|null; ageDays:number|null }
+interface CertificateData { source:string; queriedDomain:string; found:boolean; matchingNames:string[]; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }
+export interface TlsData { subject:string|null; issuer:string|null; notBefore:string|null; notAfter:string|null; expired:boolean|null; daysUntilExpiry:number|null; signatureAlgorithm:string|null; publicKeyAlgorithm:string|null; publicKeyBits:number|null; subjectAltNames:string[]; hostnameMatch:boolean|null; chainLength:number; chainComplete:boolean|null; problems:string[] }
+interface RegistrationData { queriedDomain:string; createdAt:string|null; registrar:string|null; ageDays:number|null }
 interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[]; httpStatus:number|null; contentType:string|null; cachedAt:string|null; source:string }
 export interface LiveInspection {
   checkedAt: string;
+  registrableDomain: string;
   privacy: string;
   dns: Check<DnsData>;
   certificateTransparency: Check<CertificateData>;
@@ -90,26 +92,40 @@ async function dnsLookup(hostname:string,fetcher:FetchLike):Promise<Check<DnsDat
     }};
   } catch(error) { return unavailable(providerErrorCode(error,"DNS_LOOKUP_FAILED")); }
 }
-async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Check<CertificateData>> {
+function dnsNameMatches(hostname:string,pattern:string):boolean {
+  const host=hostname.toLowerCase().replace(/\.$/,"");
+  const name=pattern.toLowerCase().replace(/\.$/,"");
+  if(name.startsWith("*.")){
+    const suffix=name.slice(2);
+    const prefix=host.slice(0,-suffix.length-1);
+    return getDomain(suffix,{allowPrivateDomains:true})===suffix && host.endsWith("."+suffix)&&prefix.length>0&&!prefix.includes(".");
+  }
+  return host===name;
+}
+async function certificateLookup(hostname:string,registrableDomain:string,fetcher:FetchLike):Promise<Check<CertificateData>> {
   try {
     const url=new URL("https://api.certspotter.com/v1/issuances");
-    url.searchParams.set("domain",hostname);url.searchParams.set("include_subdomains","true");
+    url.searchParams.set("domain",registrableDomain);url.searchParams.set("include_subdomains","true");
     url.searchParams.set("expand","dns_names");url.searchParams.set("limit","100");
     const response=await fetchTimed(fetcher,url.toString(),{headers:{accept:"application/json"},redirect:"follow"});
     if(!response.ok)throw new Error("CT_HTTP_"+response.status);
     const raw=await readLimited(response,512*1024);
     const rows=JSON.parse(raw) as unknown;
     if(!Array.isArray(rows))throw new Error("CT_INVALID_RESPONSE");
-    const certs=rows.filter(isRecord).map(row=>({
-      issued:safeDate(row.not_before),expires:safeDate(row.not_after),
-      commonName:Array.isArray(row.dns_names)?String(row.dns_names.find(name=>String(name).replace(/^\*\./,"").toLowerCase()===hostname.toLowerCase())??row.dns_names[0]??"").slice(0,253):null,
-      revoked:typeof row.revoked==="boolean"?row.revoked:null
-    })).filter(row=>row.issued).sort((a,b)=>Date.parse(b.issued!)-Date.parse(a.issued!));
+    const certs=rows.filter(isRecord).map(row=>{
+      const names=Array.isArray(row.dns_names)?row.dns_names.map(name=>String(name).toLowerCase().slice(0,253)):[];
+      return {issued:safeDate(row.not_before),expires:safeDate(row.not_after),matchingNames:names.filter(name=>dnsNameMatches(hostname,name))};
+    }).filter(row=>row.issued&&row.matchingNames.length>0)
+      .sort((a,b)=>Date.parse(b.issued!)-Date.parse(a.issued!));
     const latest=certs[0];
-    if(!latest)return unavailable("NO_CERTIFICATE_RECORDS");
+    if(!latest)return {status:"available",errorCode:null,data:{
+      source:"Certificate Transparency (Cert Spotter)",queriedDomain:registrableDomain,found:false,matchingNames:[],
+      latestIssuedAt:null,latestExpiresAt:null,issuer:null,commonName:null,expired:null
+    }};
     return {status:"available",errorCode:null,data:{
-      source:"Certificate Transparency (Cert Spotter)",latestIssuedAt:latest.issued,
-      latestExpiresAt:latest.expires,issuer:null,commonName:latest.commonName,
+      source:"Certificate Transparency (Cert Spotter)",queriedDomain:registrableDomain,found:true,
+      matchingNames:latest.matchingNames.slice(0,10),latestIssuedAt:latest.issued,
+      latestExpiresAt:latest.expires,issuer:null,commonName:latest.matchingNames[0]??null,
       expired:latest.expires?Date.parse(latest.expires)<Date.now():null
     }};
   } catch(error) { return unavailable(providerErrorCode(error,"CT_LOOKUP_FAILED")); }
@@ -130,6 +146,9 @@ async function tlsLookup(hostname:string,fetcher:FetchLike):Promise<Check<TlsDat
     const chain=Array.isArray(payload.data.chain)?payload.data.chain:[];
     const problems=Array.isArray(validation.problems)?validation.problems.map(value=>String(value).slice(0,240)).slice(0,10):[];
     const publicKey=isRecord(cert.publicKey)?cert.publicKey:{};
+    const sanEntries=isRecord(cert.extensions)&&Array.isArray(cert.extensions.subjectAltName)?cert.extensions.subjectAltName.filter(isRecord).filter(item=>String(item.type).toLowerCase()==="dns"):[];
+    const sanExtensionPresent=isRecord(cert.extensions)&&Array.isArray(cert.extensions.subjectAltName);
+    const subjectAltNames=sanEntries.map(item=>String(item.value).toLowerCase().slice(0,253)).slice(0,100);
     return {status:"available",errorCode:null,data:{
       subject:isRecord(cert.subject)?String(cert.subject.commonName??"").slice(0,253)||null:null,
       issuer:isRecord(cert.issuer)?String(cert.issuer.commonName??"").slice(0,180)||null:null,
@@ -139,11 +158,12 @@ async function tlsLookup(hostname:string,fetcher:FetchLike):Promise<Check<TlsDat
       signatureAlgorithm:typeof cert.signatureAlgorithm==="string"?cert.signatureAlgorithm.slice(0,100):null,
       publicKeyAlgorithm:typeof publicKey.algorithm==="string"?publicKey.algorithm.slice(0,40):null,
       publicKeyBits:typeof publicKey.bits==="number"?publicKey.bits:null,
+      subjectAltNames,hostnameMatch:sanExtensionPresent?sanEntries.some(item=>dnsNameMatches(hostname,String(item.value))):null,
       chainLength:chain.length,chainComplete:typeof validation.chainComplete==="boolean"?validation.chainComplete:null,problems
     }};
   } catch(error) { return unavailable(error instanceof Error?error.message.slice(0,80):"TLS_LOOKUP_FAILED"); }
 }
-async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<RegistrationData>> {
+async function rdapLookup(hostname:string,registrableDomain:string,fetcher:FetchLike):Promise<Check<RegistrationData>> {
   try {
     const bootstrapResponse=await fetchTimed(fetcher,"https://data.iana.org/rdap/dns.json",{
       headers:{accept:"application/json"},redirect:"follow"
@@ -151,7 +171,7 @@ async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<Regis
     if(!bootstrapResponse.ok)throw new Error("RDAP_BOOTSTRAP_HTTP_"+bootstrapResponse.status);
     const bootstrap=await bootstrapResponse.json() as Record<string,unknown>;
     const services=Array.isArray(bootstrap.services)?bootstrap.services:[];
-    const labels=hostname.toLowerCase().split(".");
+    const labels=registrableDomain.toLowerCase().split(".");
     let baseUrl:string|null=null;
     for(let i=0;i<labels.length;i++){
       const suffix=labels.slice(i).join(".");
@@ -162,7 +182,7 @@ async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<Regis
       }
     }
     if(!baseUrl||!baseUrl.startsWith("https://"))throw new Error("RDAP_SERVER_NOT_FOUND");
-    const endpoint=new URL("domain/"+encodeURIComponent(hostname),baseUrl.endsWith("/")?baseUrl:baseUrl+"/");
+    const endpoint=new URL("domain/"+encodeURIComponent(registrableDomain),baseUrl.endsWith("/")?baseUrl:baseUrl+"/");
     const response=await fetchTimed(fetcher,endpoint.toString(),{
       headers:{accept:"application/rdap+json"},redirect:"follow"
     });
@@ -177,7 +197,7 @@ async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<Regis
     const fn=Array.isArray(vcard)?vcard.find(item=>Array.isArray(item)&&item[0]==="fn"):null;
     const registrarName=Array.isArray(fn)?String(fn[3]??"").slice(0,180):null;
     return {status:"available",errorCode:null,data:{
-      createdAt:created,registrar:registrarName||null,
+      queriedDomain:registrableDomain,createdAt:created,registrar:registrarName||null,
       ageDays:created?Math.max(0,Math.floor((Date.now()-Date.parse(created))/86400000)):null
     }};
   } catch(error) { return unavailable(providerErrorCode(error,"RDAP_LOOKUP_FAILED")); }
@@ -258,16 +278,18 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
 }
 
 export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:FetchLike=fetch,cachedTls?:TlsData|null):Promise<LiveInspection> {
+  const registrableDomain=getDomain(hostname,{allowPrivateDomains:true})||hostname;
   const tlsPromise:Promise<Check<TlsData>>=cachedTls
     ? Promise.resolve({status:"available",errorCode:null,data:cachedTls})
     : tlsLookup(hostname,fetcher);
   const [dns,certificateTransparency,tls,registration]=await Promise.all([
-    dnsLookup(hostname,fetcher),certificateLookup(hostname,fetcher),tlsPromise,rdapLookup(hostname,fetcher)
+    dnsLookup(hostname,fetcher),certificateLookup(hostname,registrableDomain,fetcher),tlsPromise,rdapLookup(hostname,registrableDomain,fetcher)
   ]);
   const websiteContent=await contentLookup(inputUrl,hostname,fetcher,dns);
   const findings:Finding[]=[];
   const add=(code:string,title:string,severity:"info"|"low"|"medium"|"high",points:number,evidence:string,recommendation:string)=>findings.push({code,title,severity,points,evidence,recommendation});
   if(tls.status==="available"&&tls.data){
+    if(tls.data.hostnameMatch===false)add("TLS_HOSTNAME_MISMATCH","TLS certificate does not cover this hostname","high",30,"The live certificate DNS names do not include "+hostname+".","Do not bypass browser certificate warnings. Stop and verify the domain through an independently trusted channel.");
     if(tls.data.expired===true)add("LIVE_TLS_CERT_EXPIRED","Live HTTPS certificate is expired","medium",15,"The TLS inspection provider reports that the certificate presented by "+hostname+" is expired.","Do not enter sensitive information. Contact the website owner through an independently verified channel.");
     else if(tls.data.daysUntilExpiry!==null&&tls.data.daysUntilExpiry<14)add("LIVE_TLS_CERT_NEAR_EXPIRY","Live HTTPS certificate is close to expiry","low",5,"The presented TLS certificate is due to expire in approximately "+tls.data.daysUntilExpiry+" days.","This is a site-maintenance warning, not proof of phishing. Avoid sensitive actions if the browser also reports a certificate warning.");
     if(tls.data.chainComplete===false||tls.data.problems.length>0)add("LIVE_TLS_CHAIN_PROBLEM","TLS certificate chain has validation problems","medium",12,"The TLS inspection provider reported: "+(tls.data.problems.join("; ")||"an incomplete certificate chain")+".","Do not bypass browser certificate warnings. Verify the destination independently.");
@@ -293,5 +315,5 @@ export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:
     "Redirect information is limited to the final URL reported by the content reader, not a complete packet-level redirect trace.",
     "Page content can change, be personalised, or be hidden behind JavaScript or access controls. A content check is not a complete malware sandbox."
   ];
-  return {checkedAt:new Date().toISOString(),privacy:"Firecrawl receives only the public URL hostname and path. Query strings, fragments, embedded credentials and browser cookies are not forwarded. The TLS provider receives only the HTTPS hostname and has a shared rate limit of 100 requests per hour.",dns,certificateTransparency,tls,registration,websiteContent,findings,limitations};
+  return {checkedAt:new Date().toISOString(),registrableDomain,privacy:"Firecrawl receives only the public URL hostname and path. Query strings, fragments, embedded credentials and browser cookies are not forwarded. The TLS provider receives only the HTTPS hostname and has a shared rate limit of 100 requests per hour.",dns,certificateTransparency,tls,registration,websiteContent,findings,limitations};
 }
