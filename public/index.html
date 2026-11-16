@@ -24,7 +24,7 @@
 <div class="shell">
   <header>
     <a class="brand" href="/" aria-label="Scam Detector home"><span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8 20 6v5.2c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3.2Z"/><path d="m8.7 12 2.1 2.1 4.6-4.7"/></svg></span><span>SCAM DETECTOR<small>WEBSITE RISK INTELLIGENCE</small></span></a>
-    <nav class="nav"><a href="#scanner">URL Scanner</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
+    <nav class="nav"><a href="#scanner">URL Scanner</a><a href="/dashboard.html">Dashboard</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
     <div class="status-pill" id="service-status"><i class="dot"></i> CHECKING SERVICE</div>
   </header>
   <section class="hero">
@@ -145,7 +145,7 @@ function renderResult(data){
     '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
     '<div class="result-actions"><button class="secondary" id="print-report" type="button">Print / Save as PDF</button><button class="secondary" id="copy-summary" type="button">Copy summary</button></div>';
   resultEl.style.display='block';
-  document.querySelector('#print-report').addEventListener('click',()=>window.print());
+  document.querySelector('#print-report').addEventListener('click',()=>{sessionStorage.setItem('scamDetectorReport',JSON.stringify({...data,scannedAt:new Date().toISOString()}));const reportWindow=window.open('/report.html','_blank','noopener');if(!reportWindow){statusEl.textContent='Allow pop-ups for this site to open the formatted report.';}});
   document.querySelector('#copy-summary').addEventListener('click',async()=>{
     const summary='Scam Detector report\nWebsite: '+data.hostname+'\nScore: '+data.score+'/100\nAssessment: '+badgeText+'\nThreat intelligence: '+intelLabel+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No configured warning patterns or known-feed matches found.')+'\n\nA missing match is not proof that a website is safe.';
     try{await navigator.clipboard.writeText(summary);statusEl.textContent='Report summary copied.'}catch{statusEl.textContent='Clipboard unavailable in this browser. Use Print / Save as PDF instead.'}
