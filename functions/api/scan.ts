@@ -243,7 +243,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     | "preliminary_signals_detected";
 
   if (confirmedThreat) assessmentStatus = "known_threat_detected";
-  else if (findings.length > 0) assessmentStatus = "preliminary_signals_detected";
+  else if (findings.some(finding => finding.points > 0)) assessmentStatus = "preliminary_signals_detected";
   else if (domainIntelligence.status === "available" ||
       threatIntelligence.status === "available") assessmentStatus = "no_known_threat_match";
   else if (threatIntelligence.status === "partial") assessmentStatus = "threat_intel_partial";
