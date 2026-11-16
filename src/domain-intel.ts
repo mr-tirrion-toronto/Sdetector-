@@ -72,12 +72,14 @@ export async function investigateDomain(
   const endpoint = new URL("https://api.destroy.tools/v1/investigate");
   endpoint.searchParams.set("domain", normalized);
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6500);
   try {
-    const response = await fetcher(endpoint, {
+    const response = await fetcher(endpoint.toString(), {
       method: "GET",
       headers: { accept: "application/json", "user-agent": "ScamDetector/1.0" },
       redirect: "error",
-      signal: AbortSignal.timeout(6500)
+      signal: controller.signal
     });
     if (response.status === 429) return { ...unavailable("HTTP_429"), status: "rate_limited" };
     if (!response.ok) return unavailable("HTTP_" + response.status);
@@ -138,8 +140,13 @@ export async function investigateDomain(
       related
     };
   } catch (error) {
-    const code = error instanceof Error ? error.name : "UNKNOWN_ERROR";
-    return unavailable(code.slice(0, 40));
+    const code = error instanceof Error
+      ? (error.name === "AbortError" ? "PROVIDER_TIMEOUT" : error.name + (error.message ? ":" + error.message.slice(0, 80) : ""))
+      : "UNKNOWN_ERROR";
+    console.warn("DOMAIN_INTEL_PROVIDER_ERROR", code.slice(0, 120));
+    return unavailable(code.slice(0, 120));
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
