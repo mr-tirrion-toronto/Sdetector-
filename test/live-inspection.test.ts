@@ -22,7 +22,8 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
         : [] });
     }
     if (url.startsWith("https://api.certspotter.com/v1/issuances")) {
-      requestedCtDomain = new URL(url).searchParams.get("domain") ?? "";\n      return Response.json([{ not_before: "2026-01-01T00:00:00Z", not_after: "2027-01-01T00:00:00Z", dns_names: options.ctNames ?? ["example.com"] }]);
+      requestedCtDomain = new URL(url).searchParams.get("domain") ?? "";
+      return Response.json([{ not_before: "2026-01-01T00:00:00Z", not_after: "2027-01-01T00:00:00Z", dns_names: options.ctNames ?? ["example.com"] }]);
     }
     if (url === "https://data.iana.org/rdap/dns.json") {
       return Response.json({ services: [[["com"], ["https://rdap.verisign.com/com/v1/"]]] });
