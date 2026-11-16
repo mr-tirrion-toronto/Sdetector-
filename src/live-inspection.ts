@@ -268,6 +268,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
     if(/urgent.{0,50}(account|payment|verify|suspend)|account.{0,40}(suspended|locked|limited)|verify.{0,30}immediately/i.test(text))indicators.push("urgent_account_pressure");
     if(/gift card|claim.{0,30}(prize|reward)|you have won|free crypto|guaranteed profit/i.test(text))indicators.push("prize_or_financial_lure");
     if(/wire transfer|bank transfer|payment details|credit card number/i.test(text))indicators.push("payment_data_language");
+    if(/this domain is (?:parked|for sale)|domain (?:is )?(?:for sale|available for purchase)|buy this domain|domain parking|parked free|sedo domain parking|afternic/i.test(text)||/resources and information/i.test(title||""))indicators.push("domain_parked_or_for_sale");
     const businessAssessment=analyzeBusinessClaims(text);
     return {status:"available",errorCode:null,data:{
       title,fetchedUrl,redirected,contentBytes:new TextEncoder().encode(text).byteLength,indicators,
@@ -311,6 +312,7 @@ export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:
     if(content.indicators.includes("urgent_account_pressure"))add("LIVE_URGENT_ACCOUNT_PRESSURE","Page uses urgent account-pressure language","medium",15,"The live page text combines urgency with account locking, suspension or verification language.","Verify the alert through the organisation's official app or website, not the supplied link.");
     if(content.indicators.includes("prize_or_financial_lure"))add("LIVE_PRIZE_OR_FINANCIAL_LURE","Page contains prize or financial-lure language","medium",15,"The live page text includes prize, reward or guaranteed-profit wording.","Be cautious of unexpected prizes, guaranteed returns or requests for upfront fees.");
     if(content.indicators.includes("payment_data_language"))add("LIVE_PAYMENT_DATA_LANGUAGE","Page refers to payment or bank details","info",0,"The live page text contains payment or card-data language. This alone is not proof of fraud.","Only provide payment details after independently verifying the merchant and domain.");
+    if(content.indicators.includes("domain_parked_or_for_sale"))add("DOMAIN_PARKED_OR_FOR_SALE","Domain appears parked or offered for sale","medium",20,"The content provider returned domain-parking or domain-for-sale wording rather than a verifiable operating business page. The advertised service could not be inspected at this hostname.","Do not register, deposit money or trust earning claims on a parked domain. Confirm the exact active website address with the promoter and verify the operator independently.");
   }
   const limitations=[
     "Live page content is retrieved through Firecrawl keyless scraping. Only the public hostname and path are sent; query strings, fragments and embedded credentials are removed. Keyless requests are rate-limited per source IP and may be unavailable when the daily allowance is exhausted.",
