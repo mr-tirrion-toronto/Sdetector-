@@ -1,7 +1,7 @@
 import type { Finding } from "./analyzer";
 
 export interface ThreatFeedStatus {
-  source: "urlhaus" | "phishtank";
+  source: "urlhaus" | "phishtank" | "phishunt";
   status: "ok" | "error" | "not_configured";
   last_checked_at: string;
   last_success_at: string | null;
@@ -30,11 +30,16 @@ export async function hashThreatUrl(rawUrl: string): Promise<string> {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
+export async function hashThreatDomain(hostname: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("domain:" + hostname.toLowerCase().replace(/\\.$/, "")));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export async function lookupThreatIntelligence(
   sql: any,
   rawUrl: string
 ): Promise<ThreatIntelResult> {
-  const hash = await hashThreatUrl(rawUrl);
+  const url = new URL(rawUrl);\n  const hash = await hashThreatUrl(rawUrl);\n  const domainHash = await hashThreatDomain(url.hostname);
   const [matches, statuses] = await Promise.all([
     sql`
       SELECT i.source, i.source_id, i.threat_type, i.target,
@@ -72,13 +77,13 @@ export async function lookupThreatIntelligence(
     fresh.length > 0 ? "partial" : "unavailable";
 
   const findings: Finding[] = (matches as Array<any>).map(match => {
-    const isPhish = match.source === "phishtank";
+    const isPhish = match.source === "phishtank" || match.source === "phishunt";\n    const sourceName = match.source === "phishunt" ? "Phishunt" : isPhish ? "PhishTank" : "URLhaus";
     return {
       code: isPhish ? "KNOWN_PHISHING_URL" : "KNOWN_MALWARE_URL",
       title: isPhish ? "URL matches a verified PhishTank report" : "URL matches a URLhaus malware indicator",
       severity: "high",
       points: 100,
-      evidence: (isPhish ? "PhishTank verified online phishing URL" : "URLhaus reported malware-distribution URL") +
+      evidence: (match.source === "phishunt" ? "Hostname listed in the Phishunt active phishing-domain feed" : isPhish ? "PhishTank verified online phishing URL" : "URLhaus reported malware-distribution URL") +
         (match.source_id ? " (source record " + match.source_id + ")" : "") +
         (match.target ? "; reported target: " + match.target : "") +
         (match.source_updated_at ? "; source timestamp: " + match.source_updated_at : ""),
