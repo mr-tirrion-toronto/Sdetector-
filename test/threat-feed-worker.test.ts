@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalUrl, csvObjects, parseCsv } from "../feed-worker/index";
+import { canonicalUrl, csvObjects, makePhishuntIndicators, parseCsv } from "../feed-worker/index";
 
 describe("threat feed parsing", () => {
   it("parses quoted commas and escaped quote characters", () => {
@@ -36,7 +36,7 @@ describe("threat feed parsing", () => {
     });
   });
 
-  it("rejects non-web schemes", () => {
+  it("imports only normalized Phishunt hostnames and deduplicates URLs", async () => {\n    const indicators = await makePhishuntIndicators("https://Phish.Example/login\\nhttp://phish.example/verify\\nnot a url\\nlocalhost\\n");\n    expect(indicators).toHaveLength(1);\n    expect(indicators[0].hostname).toBe("phish.example");\n    expect(indicators[0].threat_type).toBe("phishing_domain");\n    expect(indicators[0].indicator_hash).toMatch(/^[a-f0-9]{64}$/);\n  });\n\n  it("rejects non-web schemes", () => {
     expect(canonicalUrl("file:///etc/passwd")).toBeNull();
   });
 });
