@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f"><title>Security Dashboard · Scam Detector</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#0d1b2b;--line:#20364c;--text:#eff6ff;--muted:#9db0c6;--mint:#69f0c1;--blue:#83baff;--amber:#ffc66d;--red:#ff7185}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% 0,#153a50 0,transparent 35%),var(--bg);color:var(--text);font:14px/1.55 Inter,system-ui,sans-serif}.shell{width:min(1120px,calc(100% - 32px));margin:auto}header{height:74px;border-bottom:1px solid #ffffff14;display:flex;align-items:center;justify-content:space-between}.brand{font-weight:850;letter-spacing:.04em}.brand span{color:var(--mint)}a{color:var(--mint);text-decoration:none}.back{color:var(--muted);font-size:12px}.intro{padding:42px 0 24px}.eyebrow{font-size:10px;letter-spacing:.18em;color:var(--mint);font-weight:850}.intro h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.05em;margin:8px 0}.intro p{color:var(--muted);margin:0;max-width:700px}.updated{font-size:11px;color:var(--muted);margin-top:12px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}.card,.panel{border:1px solid var(--line);background:#0d1b2beF;border-radius:16px;padding:19px}.metric-label{color:var(--muted);font-size:11px}.metric{font-size:32px;font-weight:850;letter-spacing:-.04em;margin:6px 0}.metric-note{font-size:10px;color:var(--muted)}.layout{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.panel h2{font-size:15px;margin:0 0 16px}.bar-row{display:grid;grid-template-columns:76px 1fr 38px;gap:10px;align-items:center;margin:13px 0;font-size:11px}.track{height:9px;background:#1b3045;border-radius:20px;overflow:hidden}.fill{height:100%;border-radius:20px;background:var(--mint)}.fill.guarded{background:var(--amber)}.fill.high,.fill.critical{background:var(--red)}.feed{display:flex;justify-content:space-between;gap:12px;border-top:1px solid #ffffff12;padding:12px 0;font-size:12px}.feed:first-of-type{border-top:0}.status{font-weight:750}.ok{color:var(--mint)}.stale,.error{color:var(--amber)}.empty{color:var(--muted);font-size:12px}.chart{height:170px;display:flex;align-items:end;gap:12px;padding:12px 0 0}.day{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:end;height:100%;gap:7px}.daybar{width:min(34px,75%);min-height:3px;background:linear-gradient(180deg,var(--mint),#338d83);border-radius:7px 7px 2px 2px}.day strong{font-size:10px}.day small{font-size:9px;color:var(--muted)}.note{margin:18px 0 36px;padding:14px 16px;border:1px solid #ffc66d33;background:#ffc66d0b;border-radius:12px;color:#d8c9ae;font-size:11px}.loading{color:var(--muted)}footer{padding:20px 0 30px;border-top:1px solid #ffffff12;color:#758ba2;font-size:10px}
+@media(max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}.metric{font-size:27px}}@media(max-width:380px){.cards{grid-template-columns:1fr}}
+</style></head><body><div class="shell">
+<header><div class="brand">SCAM <span>DETECTOR</span> / INTELLIGENCE</div><a class="back" href="/">← Back to scanner</a></header>
+<section class="intro"><div class="eyebrow">OPERATIONS OVERVIEW</div><h1>Security dashboard</h1><p>A clear view of scanning activity, detected risk levels and threat-intelligence feed health.</p><div class="updated" id="updated">Loading live dashboard data…</div></section>
+<div id="message" class="loading" role="status">Connecting to dashboard service…</div>
+<section class="cards" id="metrics" hidden>
+<article class="card"><div class="metric-label">Total scans</div><div class="metric" id="total">—</div><div class="metric-note">All recorded assessments</div></article>
+<article class="card"><div class="metric-label">Scans · last 24 hours</div><div class="metric" id="today">—</div><div class="metric-note">Recent platform activity</div></article>
+<article class="card"><div class="metric-label">Unique hostnames</div><div class="metric" id="hosts">—</div><div class="metric-note">Distinct destinations checked</div></article>
+<article class="card"><div class="metric-label">High / critical scans</div><div class="metric" id="elevated">—</div><div class="metric-note">Elevated URL-pattern scores</div></article>
+</section>
+<section class="layout" id="details" hidden>
+<article class="panel"><h2>Risk distribution</h2><div id="risk"></div></article>
+<article class="panel"><h2>Scanning activity · 7 days</h2><div class="chart" id="trend"></div></article>
+<article class="panel"><h2>Threat-intelligence feeds</h2><div id="feeds"></div></article>
+<article class="panel"><h2>How to read this dashboard</h2><p class="empty">Risk categories reflect this scanner's configured signals and evidence. They are not a calibrated probability of fraud. A low score or missing threat-feed match does not prove a website is safe.</p><p class="empty">This public dashboard exposes aggregate counts only. It does not expose submitted URLs, scan histories or report contents.</p></article>
+</section>
+<div class="note"><b>Evidence boundary:</b> dashboard figures summarize scans recorded by Scam Detector. They do not represent all websites on the internet or prove that any website is safe.</div>
+<footer>SCAM DETECTOR · Created by Mr Tirrion · Aggregated platform statistics only</footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const number=n=>new Intl.NumberFormat().format(Number(n||0));
+async function load(){
+ try{
+  const response=await fetch('/api/dashboard',{headers:{Accept:'application/json'},cache:'no-store'});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||'Dashboard unavailable');
+  const s=data.summary||{},r=data.riskDistribution||{};
+  $('total').textContent=number(s.totalScans);$('today').textContent=number(s.scans24h);$('hosts').textContent=number(s.uniqueHosts);$('elevated').textContent=number(s.elevatedScans);
+  const riskNames=['low','guarded','high','critical'],max=Math.max(1,...riskNames.map(k=>Number(r[k]||0)));
+  $('risk').innerHTML=riskNames.map(k=>'<div class="bar-row"><span>'+k[0].toUpperCase()+k.slice(1)+'</span><div class="track"><div class="fill '+k+'" style="width:'+Math.round(Number(r[k]||0)/max*100)+'%"></div></div><b>'+number(r[k])+'</b></div>').join('');
+  const days=Array.isArray(data.dailyActivity)?data.dailyActivity:[],peak=Math.max(1,...days.map(d=>Number(d.count||0)));
+  $('trend').innerHTML=days.map(d=>'<div class="day"><strong>'+number(d.count)+'</strong><div class="daybar" style="height:'+Math.max(3,Number(d.count||0)/peak*105)+'px"></div><small>'+String(d.label||'').slice(0,3)+'</small></div>').join('');
+  const feeds=Array.isArray(data.threatFeeds)?data.threatFeeds:[];
+  $('feeds').innerHTML=feeds.length?feeds.map(f=>'<div class="feed"><span>'+String(f.source||'').toUpperCase()+'<br><small class="empty">'+number(f.itemCount)+' indicators</small></span><span class="status '+(f.status==='ok'?'ok':'stale')+'">'+(f.status==='ok'?'Operational':'Needs attention')+'<br><small class="empty">'+(f.lastSuccessAt?new Date(f.lastSuccessAt).toLocaleString():'No successful sync')+'</small></span></div>').join(''):'<p class="empty">No feed has reported a successful sync yet.</p>';
+  $('metrics').hidden=false;$('details').hidden=false;$('message').textContent='';
+  $('updated').textContent='Data generated '+new Date(data.generatedAt).toLocaleString();
+ }catch(e){$('message').textContent=e.message+' · Please refresh in a moment.';$('message').className='loading';}
+}
+load();
+</script></body></html>
