@@ -152,7 +152,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const scanId = crypto.randomUUID();
   const sql = neon(env.DATABASE_URL);
-  let authUser = null;
+  let authUser: Awaited<ReturnType<typeof getAuthenticatedUser>> = null;
   try { authUser = await getAuthenticatedUser(sql, request); }
   catch { return json({ error: "Authentication service is temporarily unavailable." }, 503); }
   if ((request.headers.get("Authorization") ?? "").startsWith("Bearer ") && !authUser) {
@@ -195,9 +195,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     : { status: "unavailable" as const, errorCode: "LOOKUP_FAILED", checkedAt: null, verdict: null, assessment: null,
         infrastructure: null, registration: null, campaign: null, related: [] };
 
+  const liveInspection = liveInspectionResult.status === "fulfilled" ? liveInspectionResult.value : null;
   const externalConfirmed = domainIntelligence.status === "available" &&
     domainIntelligence.verdict?.threat === true;
-  const findings = [...result.findings, ...threatIntelligence.findings];
+  const findings = [...result.findings, ...threatIntelligence.findings, ...(liveInspection?.findings ?? [])];
   if (externalConfirmed) {
     findings.push({
       code: "PHISHDESTROY_CONFIRMED_THREAT",
@@ -230,7 +231,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     ? Math.round((Number(domainIntelligence.assessment?.score ?? domainIntelligence.verdict?.riskScore ?? 0) /
         Number(domainIntelligence.assessment?.maxScore ?? 100)) * 100)
     : 0;
-  const livePoints = (liveInspection?.findings ?? []).reduce((total, finding) => total + finding.points, 0);\n  const score = confirmedThreat ? 100 : Math.min(100, Math.max(result.score, Math.min(100, externalScore)) + livePoints);
+  const livePoints = (liveInspection?.findings ?? []).reduce((total, finding) => total + finding.points, 0);
+  const score = confirmedThreat ? 100 : Math.min(100, Math.max(result.score, Math.min(100, externalScore)) + livePoints);
   const riskLevel = score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "guarded" : "low";
   let assessmentStatus:
     | "known_threat_detected"
@@ -256,7 +258,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } else if (threatIntelligence.status === "partial" || threatIntelligence.status === "unavailable") {
     limitations.push("One or more scheduled threat-intelligence feeds are unavailable or stale. A missing match is not conclusive.");
   }
-  if (liveInspection) limitations.push(...liveInspection.limitations);\n  else limitations.push("Live DNS, certificate, registration and page-content inspection could not be completed.");\n  if (domainIntelligence.status === "available") {
+  if (liveInspection) limitations.push(...liveInspection.limitations);
+  else limitations.push("Live DNS, certificate, registration and page-content inspection could not be completed.");
+  if (domainIntelligence.status === "available") {
     limitations.push("The PhishDestroy provider receives the hostname only; the submitted URL path, query string and fragment are not sent.");
     if (!confirmedThreat && findings.length === 0) {
       limitations.push("No threat listing was found by PhishDestroy at check time. An unlisted domain is not guaranteed safe.");
@@ -275,7 +279,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     confidence: confirmedThreat ? "high" : domainIntelligence.assessment && domainIntelligence.assessment.score >= 20 ? "moderate" : "limited",
     limitations,
     threatIntelligence,
-    domainIntelligence
+    domainIntelligence,
+    liveInspection
   };
 
   let saved = false;
@@ -285,9 +290,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     await sql`
       WITH inserted_scan AS (
         INSERT INTO scans
-          (id, input_url, normalized_url, hostname, risk_score, risk_level, created_at)
+          (id, user_id, input_url, normalized_url, hostname, risk_score, risk_level, created_at)
         VALUES
-          (${scanId}, ${storedUrl}, ${storedUrl}, ${result.hostname},
+          (${scanId}, ${authUser?.id ?? null}, ${storedUrl}, ${storedUrl}, ${result.hostname},
            ${score}, ${riskLevel}, NOW())
         RETURNING id
       ),
