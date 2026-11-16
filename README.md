@@ -17,9 +17,9 @@
 - Live HTTPS certificate and chain validation through Trustico SSL Tools, including subject, issuer, validity, signature/public-key details and chain problems. Successful results are cached for 12 hours because the provider documents a shared 100 requests/hour limit.
 - Certificate Transparency issuance history from crt.sh, shown separately from the live certificate check.
 - RDAP registration date, registrar and approximate domain age when available.
-- Public page-content inspection through Jina Reader for credential requests, suspicious forms, urgent account-pressure wording, prize lures, crypto-wallet secrets and payment-data language.
-- The content reader receives only the hostname and path. Query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Non-standard ports are not sent to the reader.
-- Redirect reporting compares the final URL reported by the reader with the submitted hostname. It is not a complete network-level redirect trace.
+- Public page-content inspection through Firecrawl keyless scraping for password fields, forms, credential requests, urgent account-pressure wording, prize lures, crypto-wallet secrets and payment-data language. The keyless endpoint is free but rate-limited per source IP.
+- Firecrawl receives only the public hostname and path. Query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Private/reserved DNS targets and non-standard ports are not sent to the provider.
+- Redirect reporting compares the final URL reported by Firecrawl with the submitted hostname. It is not a complete network-level redirect trace.
 
 ### Accounts and API keys
 - Signup, login and logout.
