@@ -10,7 +10,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
         subject: { commonName: "example.com" }, issuer: { commonName: "Example CA" },
         notBefore: "2026-01-01T00:00:00Z", notAfter: "2027-01-01T00:00:00Z",
         isExpired: false, daysUntilExpiry: 46, signatureAlgorithm: "ecdsa-with-SHA256",
-        publicKey: { algorithm: "ECC", bits: 256 }
+        publicKey: { algorithm: "ECC", bits: 256 }, extensions: { subjectAltName: (options.sans ?? ["example.com"]).map(value => ({ type: "dns", value })) }
       }, chain: [{}, {}], validation: { chainComplete: true, problems: [] } } });
     }
     if (url.startsWith("https://cloudflare-dns.com/")) {
