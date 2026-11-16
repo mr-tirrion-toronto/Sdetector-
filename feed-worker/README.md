@@ -4,7 +4,7 @@ This is a separate Cloudflare Worker from the Pages frontend/API. It imports pro
 
 ## Before deployment
 1. Apply migrations/0003_threat_intelligence.sql to the same production Neon database used by Pages.
-2. Create the encrypted Worker secrets: DATABASE_URL, URLHAUS_AUTH_KEY, PHISHTANK_APP_KEY.
+2. Create the encrypted Worker secret DATABASE_URL. URLhaus and PhishTank keys are optional provider integrations; Phishunt is keyless.
 3. Confirm your URLhaus account's community fair-use/commercial entitlement and the current PhishTank/Cisco terms.
 4. Deploy with npm run deploy:feed-worker.
 
@@ -21,8 +21,8 @@ Secrets must never be added to wrangler.toml, source files, GitHub commits, brow
 ## Schedule and behavior
 - Cron: every five minutes.
 - URLhaus: authenticated recent.csv export; feed is published on a five-minute cadence.
-- PhishTank: authenticated online-valid.csv.gz; an HTTP HEAD/ETag check is performed each run and the data file is downloaded only when it changes. PhishTank says its feed is updated hourly.
-- Only verified and online PhishTank records and online URLhaus records are imported.
+- PhishTank: authenticated online-valid.csv.gz; an HTTP HEAD/ETag check is performed each run and the data file is downloaded only when it changes. PhishTank says its feed is updated hourly.\n- Phishunt: keyless CC0 phishing-domain snapshot from the public GitHub repository; the importer stores hostname hashes only and uses conditional ETag requests.
+- Only verified and online PhishTank records and online URLhaus records are imported. Phishunt records are normalized to exact hostnames; raw feed URLs are not stored.
 - URLs are normalized and SHA-256 hashed. Raw threat URLs are not written to Neon.
 - Indicator TTL is 48 hours; old records are excluded from scans and cleaned up after a seven-day grace period.
 - Provider errors are recorded without logging keys or full feed URLs. The previous successful feed timestamp remains visible.
