@@ -3,37 +3,48 @@
 ## Implemented URL analysis
 - Strict absolute URL parsing; only HTTP/HTTPS.
 - URL-pattern checks for HTTP, deceptive authority syntax, punycode, IP literals, deep subdomains, long hostnames, shorteners, sensitive-action terms and non-standard ports.
-- Explainable findings, recommendations and bounded 0–100 heuristic score.
-- Zero points are never presented as proof of safety.
+- Explainable findings, recommendations and bounded 0–100 risk indicator.
+- Zero points and no-match responses are never presented as proof of safety.
 
-## Threat-intelligence integration (code prepared; activation requires provider credentials)
-- A separate Cloudflare Worker is configured to refresh URLhaus every five minutes and check PhishTank ETag every five minutes; PhishTank data itself is published hourly.
-- URLhaus recent.csv export is ingested from its authenticated v2 export endpoint.
-- PhishTank verified-online CSV gzip feed is downloaded only when its ETag changes.
-- Feed rows are canonicalized and SHA-256 hashed. Raw feed URLs are not stored in the database.
-- Scan requests are checked against locally stored hashes; user-submitted URLs are not sent to either provider.
+## Live domain intelligence
+- Each scan can query the fixed PhishDestroy `/v1/investigate` API without an API key.
+- Only the normalized hostname is sent. URL paths, query strings, fragments, credentials and submitted URL parameters are not sent to this provider.
+- The response may include confirmed listing status, a separate pattern-based prediction, DNS-resolved IPs, RDAP registration age/registrar, campaign context and related domains when available.
+- Confirmed threat listings are distinguished from predictions and reviewed/whitelisted domains.
+- Provider errors, timeouts and rate limits are represented as unavailable intelligence, never as a clean verdict.
+- The external provider's risk score is shown as a risk indicator, not a probability.
+
+## Scheduled threat-intelligence feeds
+- A separate Cloudflare Worker refreshes keyless Phishunt CC0 phishing-domain data from its public GitHub feed using conditional ETag requests.
+- URLhaus and PhishTank importers remain optional integrations; they require their own credentials and are not required for Phishunt.
+- Feed rows are normalized and SHA-256 hashed. Raw feed URLs are not stored in the database.
+- Scan requests are checked against locally stored indicators; submitted URLs are not sent to URLhaus or PhishTank.
 - Results expose provider freshness, match provenance, feed status, and clear no-match/unavailable states.
-- A verified URLhaus or PhishTank match produces a critical known-threat finding.
-- Indicator records expire after 48 hours without a successful refresh; expired records are not used for matching.
+- Indicators expire after 48 hours without a successful refresh; expired records are not used for matching.
+
+## Dashboard and reports
+- `/dashboard.html` exposes aggregate scan counts, risk distribution, seven-day activity and threat-feed health. It does not expose submitted URLs or report contents.
+- `/report.html` provides a print-ready A4 report with plain-language verdict, evidence, recommendations and limitations. Users can save it as PDF through the browser print dialog.
+- Report data is held in the browser session for the report view; no external PDF service is used.
 
 ## Required production configuration
-The scheduled feed Worker must be deployed separately from Cloudflare Pages and configured with these encrypted Worker secrets:
-- DATABASE_URL — the existing Neon connection string (also add it to this Worker, not just Pages).
-- URLHAUS_AUTH_KEY — an abuse.ch authentication key.
-- PHISHTANK_APP_KEY — a registered PhishTank application key.
-
-Apply migrations/0003_threat_intelligence.sql to the production Neon database before deploying the new Pages API. Deploy the feed Worker using npm run deploy:feed-worker after its secrets are configured. Do not commit keys or put them in browser code.
+- Apply `migrations/0004_phishunt_feed.sql` to the production Neon database before activating the updated feed Worker.
+- Deploy the feed Worker separately from Cloudflare Pages and configure its encrypted `DATABASE_URL` secret (the Pages secret does not automatically transfer to the Worker).
+- URLhaus and PhishTank secrets are optional and should only be added if their current terms and eligibility are confirmed.
+- Do not commit secrets or place them in browser code.
 
 ## Provider usage and legal notes
-- URLhaus community exports require an Auth-Key. Its official API documentation says commercial or for-profit use may require the enhanced commercial API. Confirm that the intended Scam Detector business model is within the community fair-use terms or obtain the appropriate commercial entitlement.
-- PhishTank's current terms page points users to Cisco's current EULA; the API documentation requires a registered application key for higher request limits. Confirm the applicable current terms before public product use.
-- Do not scrape or redistribute provider data beyond the permissions granted to the account.
+- Phishunt feed data is released under CC0 1.0 according to its public repository. Review the source and license before changing feeds.
+- PhishDestroy's public API documents no API key and no usage quota, with a flood guard that can return HTTP 429. Its Terms of Service still apply.
+- URLhaus community exports require an Auth-Key; commercial or for-profit use may require the enhanced commercial API.
+- PhishTank's current terms point users to Cisco's current EULA. Confirm applicable terms before using it in a public product.
 
 ## Not implemented yet
-- DNS A/AAAA, RDAP registration age, TLS certificate inspection and redirect-chain inspection.
-- Live website HTML/content analysis, form/credential-harvesting analysis and brand impersonation.
-- Authenticated multi-user investigation history, watchlists, evidence timeline and server-generated PDF reports.
-- Calibrated probability estimates; the 0–100 score is a rule-based risk indicator, not a probability.
+- Direct TLS certificate inspection, full redirect-chain inspection and live website HTML/content analysis.
+- Form/credential-harvesting analysis and browser-isolated page inspection.
+- Authenticated multi-user accounts, private per-user investigation history, watchlists and evidence timeline.
+- Server-generated PDF rendering; current PDF export uses the browser's print-to-PDF flow.
+- Calibrated probability estimates; the 0–100 score is a rule-based/provider risk indicator, not a probability.
 
 ## Safety boundary
-The scanner does not fetch submitted websites and does not execute third-party page code. Threat feeds are fetched only from fixed, trusted provider endpoints by a scheduled Worker. Any future active inspection of user-submitted websites requires connection-time destination validation, DNS rebinding defenses, private/reserved IP blocking, redirect re-validation, strict time/size limits and isolated parsing.
+The scanner does not fetch submitted websites and does not execute third-party page code. It sends only the hostname to the fixed PhishDestroy domain-intelligence endpoint. Scheduled feeds are fetched only from fixed trusted provider endpoints. Any future active inspection of user-submitted websites requires connection-time destination validation, DNS rebinding defenses, private/reserved IP blocking, redirect re-validation, strict time/size limits and isolated parsing.

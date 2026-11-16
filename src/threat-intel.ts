@@ -1,7 +1,7 @@
 import type { Finding } from "./analyzer";
 
 export interface ThreatFeedStatus {
-  source: "urlhaus" | "phishtank";
+  source: "urlhaus" | "phishtank" | "phishunt";
   status: "ok" | "error" | "not_configured";
   last_checked_at: string;
   last_success_at: string | null;
@@ -13,7 +13,7 @@ export interface ThreatIntelResult {
   status: "available" | "partial" | "unavailable" | "not_configured";
   matched: boolean;
   feeds: Array<{
-    source: "urlhaus" | "phishtank";
+    source: "urlhaus" | "phishtank" | "phishunt";
     status: "ok" | "error" | "not_configured" | "stale";
     lastUpdatedAt: string | null;
     itemCount: number;
@@ -30,18 +30,23 @@ export async function hashThreatUrl(rawUrl: string): Promise<string> {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function lookupThreatIntelligence(
-  sql: any,
-  rawUrl: string
-): Promise<ThreatIntelResult> {
+export async function hashThreatDomain(hostname: string): Promise<string> {
+  const normalized = hostname.toLowerCase().replace(/\.$/, "");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("domain:" + normalized));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function lookupThreatIntelligence(sql: any, rawUrl: string): Promise<ThreatIntelResult> {
+  const url = new URL(rawUrl);
   const hash = await hashThreatUrl(rawUrl);
+  const domainHash = await hashThreatDomain(url.hostname);
   const [matches, statuses] = await Promise.all([
     sql`
       SELECT i.source, i.source_id, i.threat_type, i.target,
              i.source_updated_at, s.last_success_at
       FROM threat_indicators i
       LEFT JOIN threat_feed_status s ON s.source = i.source
-      WHERE i.indicator_hash = ${hash}
+      WHERE i.indicator_hash IN (${hash}, ${domainHash})
         AND i.expires_at > NOW()
       ORDER BY i.source
     `,
@@ -72,16 +77,26 @@ export async function lookupThreatIntelligence(
     fresh.length > 0 ? "partial" : "unavailable";
 
   const findings: Finding[] = (matches as Array<any>).map(match => {
-    const isPhish = match.source === "phishtank";
+    const isPhish = match.source === "phishtank" || match.source === "phishunt";
+    const title = match.source === "phishunt"
+      ? "Hostname appears in the Phishunt phishing-domain feed"
+      : isPhish
+        ? "URL matches a verified PhishTank report"
+        : "URL matches a URLhaus malware indicator";
+    const evidence = match.source === "phishunt"
+      ? "The submitted hostname is listed in the Phishunt active phishing-domain feed."
+      : isPhish
+        ? "The URL is listed as a verified online phishing URL by PhishTank."
+        : "The URL is listed as a malware-distribution indicator by URLhaus.";
     return {
-      code: isPhish ? "KNOWN_PHISHING_URL" : "KNOWN_MALWARE_URL",
-      title: isPhish ? "URL matches a verified PhishTank report" : "URL matches a URLhaus malware indicator",
+      code: match.source === "phishunt" ? "KNOWN_PHISHING_DOMAIN" : isPhish ? "KNOWN_PHISHING_URL" : "KNOWN_MALWARE_URL",
+      title,
       severity: "high",
       points: 100,
-      evidence: (isPhish ? "PhishTank verified online phishing URL" : "URLhaus reported malware-distribution URL") +
-        (match.source_id ? " (source record " + match.source_id + ")" : "") +
-        (match.target ? "; reported target: " + match.target : "") +
-        (match.source_updated_at ? "; source timestamp: " + match.source_updated_at : ""),
+      evidence: evidence +
+        (match.source_id ? " Source record: " + match.source_id + "." : "") +
+        (match.target ? " Reported target: " + match.target + "." : "") +
+        (match.source_updated_at ? " Source timestamp: " + match.source_updated_at + "." : ""),
       recommendation: "Do not visit this URL or enter credentials. Treat it as a known threat and report it through your organisation's security process."
     };
   });
