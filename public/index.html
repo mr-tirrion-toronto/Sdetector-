@@ -143,13 +143,16 @@ function renderResult(data){
   const reg=live.registration||{},regData=reg.data||{};
   const page=live.websiteContent||{},pageData=page.data||{};
   const livePanel='<div class="feed-panel"><strong>Live website inspection</strong>'+
+    (live.registrableDomain?'<div class="feed-row"><span>Registered domain checked</span><b>'+escapeHtml(live.registrableDomain)+'</b></div>':'')+
     '<div class="feed-row"><span>DNS records</span><b>'+escapeHtml(dns.status==='available'?dnsRecords.length+' records':'Unavailable')+'</b></div>'+
     (dnsRecords.length?'<div class="feed-row"><span>'+escapeHtml(dnsRecords.slice(0,3).map(r=>r.type+': '+r.value).join(' · '))+'</span></div>':'')+
     '<div class="feed-row"><span>Live TLS certificate</span><b>'+escapeHtml(tls.status==='available'?(tlsData.expired?'Expired':tlsData.daysUntilExpiry!==null?tlsData.daysUntilExpiry+' days remaining':'Certificate checked'):'Unavailable')+'</b></div>'+
+    '<div class="feed-row"><span>TLS hostname coverage</span><b>'+escapeHtml(tls.status==='available'?(tlsData.hostnameMatch===true?'Verified':tlsData.hostnameMatch===false?'Mismatch':'Not confirmed'):'Unavailable')+'</b></div>'+
+    (tlsData.subjectAltNames?.length?'<div class="feed-row"><span>Certificate DNS names</span><b>'+escapeHtml(tlsData.subjectAltNames.slice(0,3).join(', '))+'</b></div>':'')+
     (tlsData.issuer?'<div class="feed-row"><span>TLS issuer</span><b>'+escapeHtml(tlsData.issuer)+'</b></div>':'')+
-    '<div class="feed-row"><span>Certificate transparency</span><b>'+escapeHtml(cert.status==='available'?(certData.expired?'Latest record expired':'Certificate record found'):'Unavailable')+'</b></div>'+
+    '<div class="feed-row"><span>Certificate transparency</span><b>'+escapeHtml(cert.status==='available'?(certData.found===false?'No matching hostname record':certData.expired?'Latest record expired':'Matching certificate record'):'Unavailable')+'</b></div>'+
     '<div class="feed-row"><span>Domain registration</span><b>'+escapeHtml(reg.status==='available'?(regData.ageDays===null?'Date unknown':numberText(regData.ageDays)+' days old'):'Unavailable')+'</b></div>'+
-    '<div class="feed-row"><span>Live page content</span><b>'+escapeHtml(page.status==='available'?'Inspected':'Unavailable')+'</b></div>'+
+    '<div class="feed-row"><span>Live page content</span><b>'+escapeHtml(page.status==='available'?'Inspected':('Unavailable'+(page.errorCode?' · '+page.errorCode:'')))+'</b></div>'+
     (pageData.title?'<div class="feed-row"><span>Page title</span><b>'+escapeHtml(pageData.title)+'</b></div>':'')+
     (pageData.indicators?.length?'<div class="feed-row"><span>Content signals</span><b>'+escapeHtml(pageData.indicators.join(', '))+'</b></div>':'')+
     '<p class="feed-note">'+escapeHtml(live.privacy||'External content inspection may be incomplete. A missing signal is not proof of safety.')+'</p></div>';
