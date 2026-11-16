@@ -3,14 +3,14 @@ import { canonicalUrl, csvObjects, parseCsv } from "../feed-worker/index";
 
 describe("threat feed parsing", () => {
   it("parses quoted commas and escaped quote characters", () => {
-    expect(parseCsv('id,url,target\n1,https://bad.example/a,"Bank, \"Example\""')).toEqual([
+    expect(parseCsv('id,url,target\\n1,https://bad.example/a,"Bank, ""Example"""')).toEqual([
       ["id", "url", "target"],
       ["1", "https://bad.example/a", 'Bank, "Example"']
     ]);
   });
 
   it("ignores comment lines before the header", () => {
-    const rows = csvObjects('# URLhaus feed\n# generated today\nid,url,url_status\n1,https://bad.example/,online');
+    const rows = csvObjects('# URLhaus feed\\n# generated today\\nid,url,url_status\\n1,https://bad.example/,online');
     expect(rows).toEqual([{id:"1",url:"https://bad.example/",url_status:"online"}]);
   });
 
