@@ -3,10 +3,10 @@
 This is a separate Cloudflare Worker from the Pages frontend/API. It imports provider feeds into Neon and runs on a five-minute Cron Trigger.
 
 ## Before deployment
-1. Apply migrations/0004_phishunt_feed.sql to the same production Neon database used by Pages.
-2. Create the encrypted Worker secret DATABASE_URL. URLhaus and PhishTank keys are optional provider integrations; Phishunt is keyless.
-3. Confirm your URLhaus account's community fair-use/commercial entitlement and the current PhishTank/Cisco terms.
-4. Deploy with npm run deploy:feed-worker.
+1. The production Neon database already has the Phishunt source constraint and account/API-key tables. Do not re-run migrations 0004 or 0005.
+2. Create the encrypted Worker secret DATABASE_URL using the same Neon connection string already configured for the Pages application. The Pages secret does not automatically transfer to this separate Worker.
+3. URLhaus and PhishTank keys are optional. Phishunt is keyless and is the default feed source.
+4. On Windows PowerShell, run the commands below from the repository root. The connection string is entered only into the secure Wrangler prompt and must never be pasted into chat or committed.
 
 Wrangler commands:
 ```sh
