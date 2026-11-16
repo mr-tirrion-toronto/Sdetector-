@@ -230,13 +230,13 @@ async function makeIndicators(
 export async function makePhishuntIndicators(input: string): Promise<Indicator[]> {
   const result: Indicator[] = [];
   const seen = new Set<string>();
-  for (const line of input.split(/\\r?\\n/)) {
+  for (const line of input.split(/\r?\n/)) {
     const value = line.trim();
     if (!value || value.startsWith("#")) continue;
     const canonical = canonicalUrl(value.includes("://") ? value : "https://" + value);
     if (!canonical || !canonical.hostname.includes(".")) continue;
-    const hostname = canonical.hostname.toLowerCase().replace(/\\.$/, "");
-    if (/^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(hostname) ||
+    const hostname = canonical.hostname.toLowerCase().replace(/\.$/, "");
+    if (/^(?:\d{1,3}\\.){3}\d{1,3}$/.test(hostname) ||
         hostname === "localhost" || hostname.endsWith(".local")) continue;
     const indicatorHash = await sha256("domain:" + hostname);
     if (seen.has(indicatorHash)) continue;
