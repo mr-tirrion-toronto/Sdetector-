@@ -159,10 +159,11 @@ function renderResult(data){
     (pageData.businessSignals?.length?'<div class="feed-row"><span>Business / earnings signals</span><b>'+escapeHtml(pageData.businessSignals.join(', '))+'</b></div>':'')+
     (pageData.payoutVerification?'<div class="feed-row"><span>Payout verification</span><b>Not independently verified</b></div>':'')+
     '<p class="feed-note">'+escapeHtml(live.privacy||'External content inspection may be incomplete. A missing signal is not proof of safety.')+'</p></div>';
-  const neutralAssessment=['no_known_threat_match','threat_intel_partial','threat_intel_unavailable','insufficient_evidence'].includes(assessment);
+  const neutralAssessment=['business_claims_need_verification','no_known_threat_match','threat_intel_partial','threat_intel_unavailable','insufficient_evidence'].includes(assessment);
   const badgeClass=knownThreat?'critical':(neutralAssessment?'insufficient':level);
   const labels={
     known_threat_detected:'KNOWN THREAT MATCH',
+    business_claims_need_verification:'BUSINESS CLAIMS NEED VERIFICATION',
     no_known_threat_match:'NO KNOWN THREAT MATCH',
     threat_intel_partial:'PARTIAL INTELLIGENCE',
     threat_intel_unavailable:'INTELLIGENCE UNAVAILABLE',
