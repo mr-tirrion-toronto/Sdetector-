@@ -52,9 +52,9 @@ function unavailable<T>(errorCode:string): Check<T> { return {status:"unavailabl
 function providerErrorCode(error:unknown,fallback:string):string {
   if(error instanceof Error){
     const message=error.message.slice(0,100);
-    if(/^(DNS|CT|RDAP|READER|TLS_PROVIDER)_HTTP_\\d+$/.test(message))return message;
+    if(/^(DNS|CT|RDAP|READER|TLS_PROVIDER)_HTTP_\d+$/.test(message))return message;
     if(["RESPONSE_TOO_LARGE","CT_INVALID_RESPONSE","NO_CERTIFICATE_RECORDS","TLS_PROVIDER_INVALID_RESPONSE","TLS_PROVIDER_RATE_LIMITED","NONSTANDARD_PORT_NOT_SENT_TO_READER"].includes(message))return message;
-    return error.name||fallback;
+    return (error.name + ":" + message).slice(0,100) || fallback;
   }
   return fallback;
 }
