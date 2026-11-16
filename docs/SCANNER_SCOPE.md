@@ -41,7 +41,7 @@
 
 ## Production configuration
 - Production Neon migrations 0004 (Phishunt source), 0005 (accounts/API keys) and 0006 (TLS cache) have been applied.
-- The separate feed Worker still needs its encrypted `DATABASE_URL` secret and deployment. See `feed-worker/README.md`.
+- The Cron Worker only needs the shared `SYNC_SECRET`; Pages keeps the existing `DATABASE_URL`. See `feed-worker/README.md`.
 - URLhaus and PhishTank secrets are optional and should only be added if their current terms and eligibility are confirmed.
 - Never commit secrets or place them in browser code.
 
@@ -49,7 +49,7 @@
 - Phishunt feed data is released under CC0 1.0 according to its public repository.
 - PhishDestroy's public API is keyless and has a flood guard that can return HTTP 429. Its Terms of Service still apply.
 - Trustico SSL Tools documents no API authentication and a shared 100 requests/hour limit. TLS results are cached for 12 hours.
-- Jina Reader is a third-party content reader. Only public hostname/path data is forwarded, and its returned page text is treated as untrusted input.
+- Firecrawl is a third-party content extraction service. Only a public hostname/path is forwarded, and returned HTML is treated as untrusted input.
 - The scanner does not execute submitted-site JavaScript or download files. It is not a full malware sandbox.
 - The 0–100 score is a rule-based/provider risk indicator, not a calibrated probability.
 
@@ -61,4 +61,4 @@
 - Server-generated PDF rendering is not implemented; PDF export uses the browser's print-to-PDF flow.
 
 ## Safety boundary
-The scanner does not directly fetch arbitrary submitted website URLs from the Cloudflare Worker. Public page content is retrieved by a fixed third-party reader endpoint, and TLS checks are performed by a fixed SSL-analysis provider. DNS, RDAP and Certificate Transparency requests go only to fixed provider endpoints. Future direct website fetching would require connection-time destination validation, DNS-rebinding defenses, private/reserved IP blocking, redirect re-validation, strict time/size limits and isolated parsing.
+The scanner does not directly fetch arbitrary submitted website URLs from the Cloudflare Worker. Public page content is retrieved by the fixed Firecrawl keyless scrape endpoint after public-DNS checks, and TLS checks are performed by a fixed SSL-analysis provider. DNS, RDAP and Certificate Transparency requests go only to fixed provider endpoints. Future direct website fetching would require connection-time destination validation, DNS-rebinding defenses, private/reserved IP blocking, redirect re-validation, strict time/size limits and isolated parsing.
