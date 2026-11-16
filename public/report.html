@@ -10,14 +10,14 @@
 <script>
 const root=document.getElementById('report');
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const labels={known_threat_detected:'Known threat match',no_known_threat_match:'No known threat match',threat_intel_partial:'Partial threat intelligence',threat_intel_unavailable:'Threat intelligence unavailable',insufficient_evidence:'Insufficient evidence',preliminary_signals_detected:'Preliminary URL signals detected'};
+const labels={business_claims_need_verification:'Business claims need verification',known_threat_detected:'Known threat match',no_known_threat_match:'No known threat match',threat_intel_partial:'Partial threat intelligence',threat_intel_unavailable:'Threat intelligence unavailable',insufficient_evidence:'Insufficient evidence',preliminary_signals_detected:'Preliminary URL signals detected'};
 try{
  const data=JSON.parse(sessionStorage.getItem('scamDetectorReport')||'null');
  if(!data)throw new Error('No report data was found. Return to the scanner and generate a new report.');
  const findings=Array.isArray(data.findings)?data.findings:[];
  const assessment=labels[data.assessmentStatus]||'Preliminary assessment';
  const level=String(data.riskLevel||'unknown').toUpperCase();
- const riskText=data.assessmentStatus==='known_threat_detected'?'A matching indicator was found in a configured threat-intelligence source. Do not visit or interact with this website.':data.assessmentStatus==='no_known_threat_match'?'No exact match was found in the configured threat feeds. This does not prove the website is safe.':'The scanner found URL-pattern evidence only. This assessment is not a definitive verdict.';
+ const riskText=data.assessmentStatus==='business_claims_need_verification'?'The page contains business, earnings or parked-domain signals that require independent verification. No payout or company legitimacy has been established.':data.assessmentStatus==='known_threat_detected'?'A matching indicator was found in a configured threat-intelligence source. Do not visit or interact with this website.':data.assessmentStatus==='no_known_threat_match'?'No exact match was found in the configured threat feeds. This does not prove the website is safe.':'The scanner found URL-pattern evidence only. This assessment is not a definitive verdict.';
  const feed=data.threatIntelligence||{};
  const di=data.domainIntelligence||{};
  const dv=di.verdict||{};
