@@ -139,11 +139,14 @@ function renderResult(data){
   const live=data.liveInspection||{};
   const dns=live.dns||{},dnsRecords=dns.data?.records||[];
   const cert=live.certificateTransparency||{},certData=cert.data||{};
+  const tls=live.tls||{},tlsData=tls.data||{};
   const reg=live.registration||{},regData=reg.data||{};
   const page=live.websiteContent||{},pageData=page.data||{};
   const livePanel='<div class="feed-panel"><strong>Live website inspection</strong>'+
     '<div class="feed-row"><span>DNS records</span><b>'+escapeHtml(dns.status==='available'?dnsRecords.length+' records':'Unavailable')+'</b></div>'+
     (dnsRecords.length?'<div class="feed-row"><span>'+escapeHtml(dnsRecords.slice(0,3).map(r=>r.type+': '+r.value).join(' · '))+'</span></div>':'')+
+    '<div class="feed-row"><span>Live TLS certificate</span><b>'+escapeHtml(tls.status==='available'?(tlsData.expired?'Expired':tlsData.daysUntilExpiry!==null?tlsData.daysUntilExpiry+' days remaining':'Certificate checked'):'Unavailable')+'</b></div>'+
+    (tlsData.issuer?'<div class="feed-row"><span>TLS issuer</span><b>'+escapeHtml(tlsData.issuer)+'</b></div>':'')+
     '<div class="feed-row"><span>Certificate transparency</span><b>'+escapeHtml(cert.status==='available'?(certData.expired?'Latest record expired':'Certificate record found'):'Unavailable')+'</b></div>'+
     '<div class="feed-row"><span>Domain registration</span><b>'+escapeHtml(reg.status==='available'?(regData.ageDays===null?'Date unknown':numberText(regData.ageDays)+' days old'):'Unavailable')+'</b></div>'+
     '<div class="feed-row"><span>Live page content</span><b>'+escapeHtml(page.status==='available'?'Inspected':'Unavailable')+'</b></div>'+
