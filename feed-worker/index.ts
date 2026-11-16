@@ -236,7 +236,7 @@ export async function makePhishuntIndicators(input: string): Promise<Indicator[]
     const canonical = canonicalUrl(value.includes("://") ? value : "https://" + value);
     if (!canonical || !canonical.hostname.includes(".")) continue;
     const hostname = canonical.hostname.toLowerCase().replace(/\.$/, "");
-    if (/^(?:\d{1,3}\\.){3}\d{1,3}$/.test(hostname) ||
+    if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname) ||
         hostname === "localhost" || hostname.endsWith(".local")) continue;
     const indicatorHash = await sha256("domain:" + hostname);
     if (seen.has(indicatorHash)) continue;
