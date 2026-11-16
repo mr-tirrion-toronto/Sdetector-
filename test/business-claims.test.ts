@@ -2,6 +2,22 @@ import { describe, expect, it } from "vitest";
 import { analyzeBusinessClaims } from "../src/business-claims";
 
 describe("analyzeBusinessClaims", () => {
+
+  it("reports operator identity disclosure without claiming official verification", () => {
+    const result = analyzeBusinessClaims("Example platform. support@example.com. Example Limited.", '<a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a>');
+    expect(result.operatorDisclosure.legalEntityDetected).toBe(true);
+    expect(result.operatorDisclosure.contactDetailsDetected).toBe(true);
+    expect(result.operatorDisclosure.termsLinkDetected).toBe(true);
+    expect(result.operatorDisclosure.privacyLinkDetected).toBe(true);
+    expect(result.operatorVerification).toBe("not_independently_verified");
+  });
+
+  it("flags incomplete operator disclosures as an information signal, not proof of fraud", () => {
+    const result = analyzeBusinessClaims("Earn money chatting with foreigners.");
+    expect(result.signals).toContain("operator_identity_disclosure_incomplete");
+    expect(result.findings.find(item => item.code === "BUSINESS_OPERATOR_DETAILS_INCOMPLETE")?.points).toBe(0);
+  });
+
   it("recognizes paid-chat claims without calling them proof of fraud", () => {
     const result = analyzeBusinessClaims("Get paid to chat with foreigners and earn money for every message.");
     expect(result.model).toBe("paid_chat_or_task_claim");
@@ -31,6 +47,7 @@ describe("analyzeBusinessClaims", () => {
   it("does not flag an ordinary language exchange page as an earning scheme", () => {
     const result = analyzeBusinessClaims("Join a free language exchange and practise Swahili with international learners.");
     expect(result.model).toBe("not_detected");
-    expect(result.findings).toHaveLength(0);
+    expect(result.findings.every(item => item.code === "BUSINESS_OPERATOR_DETAILS_INCOMPLETE" && item.points === 0)).toBe(true);
+    expect(result.signals).not.toContain("paid_chat_business_claim");
   });
 });
