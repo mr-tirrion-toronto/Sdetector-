@@ -4,6 +4,7 @@ import { inspectLiveDomain } from "../src/live-inspection";
 function providers(options: { firecrawlStatus?: number; address?: string; sans?: string[]; ctNames?: string[] } = {}) {
   let requestedUrl = "";
   let requestedRdapUrl = "";
+  let requestedCtDomain = "";
   const fetcher: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url === "https://tools.trustico.com/api/chain/analyze-url") {
@@ -21,7 +22,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
         : [] });
     }
     if (url.startsWith("https://api.certspotter.com/v1/issuances")) {
-      return Response.json([{ not_before: "2026-01-01T00:00:00Z", not_after: "2027-01-01T00:00:00Z", dns_names: options.ctNames ?? ["example.com"] }]);
+      requestedCtDomain = new URL(url).searchParams.get("domain") ?? "";\n      return Response.json([{ not_before: "2026-01-01T00:00:00Z", not_after: "2027-01-01T00:00:00Z", dns_names: options.ctNames ?? ["example.com"] }]);
     }
     if (url === "https://data.iana.org/rdap/dns.json") {
       return Response.json({ services: [[["com"], ["https://rdap.verisign.com/com/v1/"]]] });
@@ -43,7 +44,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
     }
     throw new Error("Unexpected provider URL: " + url);
   };
-  return { fetcher, getRequestedUrl: () => requestedUrl, getRequestedRdapUrl: () => requestedRdapUrl };
+  return { fetcher, getRequestedUrl: () => requestedUrl, getRequestedRdapUrl: () => requestedRdapUrl, getRequestedCtDomain: () => requestedCtDomain };
 }
 
 describe("inspectLiveDomain", () => {
@@ -67,6 +68,25 @@ describe("inspectLiveDomain", () => {
     expect(result.websiteContent.data?.indicators).toContain("urgent_account_pressure");
     expect(result.findings.map(f => f.code)).toContain("LIVE_PASSWORD_INPUT");
     expect(mock.getRequestedUrl()).toBe("https://example.com/login");
+  });
+
+  it("uses the registrable domain for RDAP and CT while validating TLS against the exact hostname", async () => {
+    const mock = providers({ sans: ["*.toscrape.com"], ctNames: ["*.toscrape.com", "toscrape.com"] });
+    const result = await inspectLiveDomain("https://quotes.toscrape.com/login", "quotes.toscrape.com", mock.fetcher);
+    expect(result.registrableDomain).toBe("toscrape.com");
+    expect(result.certificateTransparency.data?.queriedDomain).toBe("toscrape.com");
+    expect(result.registration.data?.queriedDomain).toBe("toscrape.com");
+    expect(mock.getRequestedRdapUrl()).toContain("/domain/toscrape.com");
+    expect(mock.getRequestedCtDomain()).toBe("toscrape.com");
+    expect(result.tls.data?.hostnameMatch).toBe(true);
+    expect(result.findings.map(f => f.code)).not.toContain("TLS_HOSTNAME_MISMATCH");
+  });
+
+  it("raises a finding when the live TLS certificate SAN does not cover the hostname", async () => {
+    const mock = providers({ sans: ["unrelated.example.net"] });
+    const result = await inspectLiveDomain("https://example.com/", "example.com", mock.fetcher);
+    expect(result.tls.data?.hostnameMatch).toBe(false);
+    expect(result.findings.map(f => f.code)).toContain("TLS_HOSTNAME_MISMATCH");
   });
 
   it("does not forward query strings, fragments or credentials to the content provider", async () => {
