@@ -60,17 +60,26 @@ export function parseCsv(input: string): string[][] {
 }
 
 export function csvObjects(input: string): Record<string, string>[] {
-  const clean = input.split(/\r?\n/).filter(line => !line.trimStart().startsWith("#")).join("\n");
-  const rows = parseCsv(clean);
+  const lines = input.split(/\r?\n/);
+  const headerIndex = lines.findIndex(line => {
+    const candidate = line.trimStart().replace(/^#\\s*/, "").toLowerCase();
+    return candidate.startsWith("id,dateadded,url,") || candidate.startsWith("phish_id,url,");
+  });
+  if (headerIndex < 0) return [];
+
+  const header = lines[headerIndex].trimStart().replace(/^#\\s*/, "");
+  const dataLines = lines.slice(headerIndex + 1)
+    .filter(line => line.trim().length > 0 && !line.trimStart().startsWith("#"));
+  const rows = parseCsv([header, ...dataLines].join("\n"));
   if (!rows.length) return [];
-  const headers = rows[0].map(value => value.trim().replace(/^#\s*/, "").toLowerCase());
+
+  const headers = rows[0].map(value => value.trim().toLowerCase());
   return rows.slice(1).map(values => {
     const item: Record<string, string> = {};
-    headers.forEach((header, index) => item[header] = (values[index] ?? "").trim());
+    headers.forEach((name, index) => item[name] = (values[index] ?? "").trim());
     return item;
   });
 }
-
 export function canonicalUrl(raw: string): { value: string; hostname: string } | null {
   try {
     const url = new URL(raw.trim());
