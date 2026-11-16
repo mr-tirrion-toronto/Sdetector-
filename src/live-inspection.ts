@@ -4,7 +4,7 @@ type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respo
 interface Check<T> { status: "available" | "unavailable" | "not_checked"; errorCode: string | null; data: T | null }
 interface DnsData { records: Array<{type:string;value:string;ttl:number|null}>; dnssec: boolean|null }
 interface CertificateData { source:string; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }
-interface TlsData { subject:string|null; issuer:string|null; notBefore:string|null; notAfter:string|null; expired:boolean|null; daysUntilExpiry:number|null; signatureAlgorithm:string|null; publicKeyAlgorithm:string|null; publicKeyBits:number|null; chainLength:number; chainComplete:boolean|null; problems:string[] }
+export interface TlsData { subject:string|null; issuer:string|null; notBefore:string|null; notAfter:string|null; expired:boolean|null; daysUntilExpiry:number|null; signatureAlgorithm:string|null; publicKeyAlgorithm:string|null; publicKeyBits:number|null; chainLength:number; chainComplete:boolean|null; problems:string[] }
 interface RegistrationData { createdAt:string|null; registrar:string|null; ageDays:number|null }
 interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[] }
 export interface LiveInspection {
@@ -187,9 +187,12 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):
   } catch(error) { return unavailable(error instanceof Error?error.name:"CONTENT_LOOKUP_FAILED"); }
 }
 
-export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:FetchLike=fetch):Promise<LiveInspection> {
+export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:FetchLike=fetch,cachedTls?:TlsData|null):Promise<LiveInspection> {
+  const tlsPromise:Promise<Check<TlsData>>=cachedTls
+    ? Promise.resolve({status:"available",errorCode:null,data:cachedTls})
+    : tlsLookup(hostname,fetcher);
   const [dns,certificateTransparency,tls,registration,websiteContent]=await Promise.all([
-    dnsLookup(hostname,fetcher),certificateLookup(hostname,fetcher),tlsLookup(hostname,fetcher),
+    dnsLookup(hostname,fetcher),certificateLookup(hostname,fetcher),tlsPromise,
     rdapLookup(hostname,fetcher),contentLookup(inputUrl,hostname,fetcher)
   ]);
   const findings:Finding[]=[];
