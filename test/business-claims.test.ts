@@ -47,6 +47,7 @@ describe("analyzeBusinessClaims", () => {
   it("does not flag an ordinary language exchange page as an earning scheme", () => {
     const result = analyzeBusinessClaims("Join a free language exchange and practise Swahili with international learners.");
     expect(result.model).toBe("not_detected");
-    expect(result.findings).toHaveLength(0);
+    expect(result.findings.every(item => item.code === "BUSINESS_OPERATOR_DETAILS_INCOMPLETE" && item.points === 0)).toBe(true);
+    expect(result.signals).not.toContain("paid_chat_business_claim");
   });
 });
