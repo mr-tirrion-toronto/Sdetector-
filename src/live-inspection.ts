@@ -2,13 +2,17 @@ import type { Finding } from "./analyzer";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 interface Check<T> { status: "available" | "unavailable" | "not_checked"; errorCode: string | null; data: T | null }
+interface DnsData { records: Array<{type:string;value:string;ttl:number|null}>; dnssec: boolean|null }
+interface CertificateData { source:string; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }
+interface RegistrationData { createdAt:string|null; registrar:string|null; ageDays:number|null }
+interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[] }
 export interface LiveInspection {
   checkedAt: string;
   privacy: string;
-  dns: Check<{ records: Array<{type:string;value:string;ttl:number|null}>; dnssec: boolean|null }>;
-  certificateTransparency: Check<{ source:string; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }>;
-  registration: Check<{ createdAt:string|null; registrar:string|null; ageDays:number|null }>;
-  websiteContent: Check<{ title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[] }>;
+  dns: Check<DnsData>;
+  certificateTransparency: Check<CertificateData>;
+  registration: Check<RegistrationData>;
+  websiteContent: Check<WebsiteContentData>;
   findings: Finding[];
   limitations: string[];
 }
@@ -55,7 +59,7 @@ function safeHost(hostname:string):boolean {
   if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(":")) return false;
   return /^[a-z0-9.-]+$/.test(host);
 }
-async function dnsLookup(hostname:string,fetcher:FetchLike):Promise<Check<LiveInspection["dns"]["data"]>> {
+async function dnsLookup(hostname:string,fetcher:FetchLike):Promise<Check<DnsData>> {
   try {
     const types=["A","AAAA","MX","NS","TXT"];
     const responses=await Promise.all(types.map(async type=>{
@@ -75,7 +79,7 @@ async function dnsLookup(hostname:string,fetcher:FetchLike):Promise<Check<LiveIn
     }};
   } catch(error) { return unavailable(error instanceof Error?error.name:"DNS_LOOKUP_FAILED"); }
 }
-async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Check<LiveInspection["certificateTransparency"]["data"]>> {
+async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Check<CertificateData>> {
   try {
     const url=new URL("https://crt.sh/");
     url.searchParams.set("q",hostname);url.searchParams.set("output","json");
@@ -98,7 +102,7 @@ async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Chec
     }};
   } catch(error) { return unavailable(error instanceof Error?error.name:"CT_LOOKUP_FAILED"); }
 }
-async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<LiveInspection["registration"]["data"]>> {
+async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<RegistrationData>> {
   try {
     const response=await fetchTimed(fetcher,"https://rdap.org/domain/"+encodeURIComponent(hostname),{
       headers:{accept:"application/rdap+json"},redirect:"follow"
@@ -118,7 +122,7 @@ async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<LiveI
     }};
   } catch(error) { return unavailable(error instanceof Error?error.name:"RDAP_LOOKUP_FAILED"); }
 }
-async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):Promise<Check<LiveInspection["websiteContent"]["data"]>> {
+async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):Promise<Check<WebsiteContentData>> {
   try {
     const target=new URL(inputUrl);
     target.username="";target.password="";target.search="";target.hash="";
@@ -157,7 +161,7 @@ export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:
     rdapLookup(hostname,fetcher),contentLookup(inputUrl,hostname,fetcher)
   ]);
   const findings:Finding[]=[];
-  const add=(code:string,title:string,severity:"low"|"medium"|"high",points:number,evidence:string,recommendation:string)=>findings.push({code,title,severity,points,evidence,recommendation});
+  const add=(code:string,title:string,severity:"info"|"low"|"medium"|"high",points:number,evidence:string,recommendation:string)=>findings.push({code,title,severity,points,evidence,recommendation});
   if(dns.status==="available"&&dns.data?.records.length===0)add("DNS_NO_PUBLIC_RECORDS","No public DNS records were returned","medium",15,"The public DNS lookup returned no A, AAAA, MX, NS or TXT answers.","Confirm the domain spelling and verify the domain through its official registrar.");
   if(certificateTransparency.status==="available"&&certificateTransparency.data?.expired===true)add("CT_LATEST_CERT_EXPIRED","Latest certificate-transparency record is expired","low",5,"The latest certificate record found in Certificate Transparency has an expiry date in the past. This does not establish the live endpoint's current certificate state.","Open the organisation's official site independently and check its browser TLS certificate before entering information.");
   if(registration.status==="available"&&registration.data?.ageDays!==null&&registration.data?.ageDays!==undefined&&registration.data.ageDays<30)add("DOMAIN_RECENTLY_REGISTERED","Domain was registered recently","medium",15,"RDAP registration data indicates an age of approximately "+registration.data.ageDays+" days.","Treat unexpected links on a recently registered domain with extra caution and verify the sender independently.");
