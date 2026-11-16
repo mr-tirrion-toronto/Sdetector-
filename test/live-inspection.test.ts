@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { inspectLiveDomain } from "../src/live-inspection";
 
 function providers(options: { firecrawlStatus?: number; address?: string; sans?: string[]; ctNames?: string[] } = {}) {
-  let requestedUrl = "";\n  let requestedRdapUrl = "";
+  let requestedUrl = "";
+  let requestedRdapUrl = "";
   const fetcher: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url === "https://tools.trustico.com/api/chain/analyze-url") {
@@ -26,6 +27,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
       return Response.json({ services: [[["com"], ["https://rdap.verisign.com/com/v1/"]]] });
     }
     if (url.startsWith("https://rdap.verisign.com/com/v1/domain/")) {
+      requestedRdapUrl = url;
       return Response.json({ events: [{ eventAction: "registration", eventDate: "2026-01-01T00:00:00Z" }], entities: [] });
     }
     if (url === "https://api.firecrawl.dev/v2/scrape") {
@@ -52,8 +54,12 @@ describe("inspectLiveDomain", () => {
     expect(result.dns.data?.records[0]?.value).toBe("93.184.216.34");
     expect(result.certificateTransparency.status).toBe("available");
     expect(result.tls.status).toBe("available");
-    expect(result.tls.data?.chainComplete).toBe(true);\n    expect(result.tls.data?.hostnameMatch).toBe(true);\n    expect(result.tls.data?.subjectAltNames).toContain("example.com");
-    expect(result.registration.status).toBe("available");\n    expect(result.registration.data?.queriedDomain).toBe("example.com");\n    expect(result.certificateTransparency.data?.found).toBe(true);
+    expect(result.tls.data?.chainComplete).toBe(true);
+    expect(result.tls.data?.hostnameMatch).toBe(true);
+    expect(result.tls.data?.subjectAltNames).toContain("example.com");
+    expect(result.registration.status).toBe("available");
+    expect(result.registration.data?.queriedDomain).toBe("example.com");
+    expect(result.certificateTransparency.data?.found).toBe(true);
     expect(result.websiteContent.status).toBe("available");
     expect(result.websiteContent.data?.source).toBe("Firecrawl keyless scrape");
     expect(result.websiteContent.data?.indicators).toContain("password_input");
