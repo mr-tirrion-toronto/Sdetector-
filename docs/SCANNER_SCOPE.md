@@ -17,13 +17,13 @@
 - Provider failures, timeouts and rate limits are shown as unavailable intelligence, never as a clean verdict.
 
 ## Scheduled threat-intelligence feeds
-- A separate Cloudflare Worker contains the keyless Phishunt CC0 feed importer and a five-minute Cron Trigger.
+- A separate Cloudflare Cron Worker runs every five minutes and calls the authenticated Pages feed-sync endpoint. The Pages Function imports the keyless Phishunt CC0 feed using the existing Pages database binding; the Cron Worker does not need a second Neon credential.
 - URLhaus and PhishTank importers remain optional integrations and require their own credentials. They are not required for Phishunt.
 - Feed rows are normalized and SHA-256 hashed. Raw feed URLs are not stored.
 - Scan requests are checked against locally stored indicators; submitted URLs are not sent to URLhaus or PhishTank.
 - Results expose provider freshness, match provenance, feed status and clear no-match/unavailable states.
 - Indicators expire after 48 hours without a successful refresh; expired records are not used for matching.
-- **Activation state:** the Phishunt Worker code is in the repository, but the separate Worker still needs to be deployed and given its encrypted `DATABASE_URL` secret. A Pages secret does not automatically transfer to a separate Worker. Until that deployment and first successful sync, the dashboard correctly reports that no feed has synced.
+- **Activation state:** the importer and protected Pages endpoint are in the repository. The separate Cron Worker still needs deployment with `SYNC_SECRET`, and Pages needs the matching `FEED_SYNC_SECRET`. Until the Worker runs successfully and imports the first snapshot, the dashboard correctly reports that no feed has synced.
 
 ## Accounts and API access
 - Signup, login and logout endpoints with salted PBKDF2-SHA256 password hashes.
