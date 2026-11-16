@@ -164,7 +164,7 @@ async function upsertIndicators(
       SELECT
         ${source}, row.indicator_hash, row.source_id, row.hostname,
         row.threat_type, row.target, row.source_updated_at, NOW(),
-        NOW() + (${INDICATOR_TTL_HOURS} || ' hours')::interval
+        NOW() + (${INDICATOR_TTL_HOURS} * INTERVAL '1 hour')
       FROM jsonb_to_recordset(${json}::jsonb) AS row(
         indicator_hash TEXT, source_id TEXT, hostname TEXT, threat_type TEXT,
         target TEXT, source_updated_at TIMESTAMPTZ
@@ -176,7 +176,7 @@ async function upsertIndicators(
         target = EXCLUDED.target,
         source_updated_at = EXCLUDED.source_updated_at,
         imported_at = NOW(),
-        expires_at = NOW() + (${INDICATOR_TTL_HOURS} || ' hours')::interval
+        expires_at = NOW() + (${INDICATOR_TTL_HOURS} * INTERVAL '1 hour')
     `;
   }
 }
@@ -229,11 +229,16 @@ async function syncUrlhaus(sql: ReturnType<typeof neon>, key?: string): Promise<
   try {
     const endpoint = "https://urlhaus-api.abuse.ch/v2/files/exports/" +
       encodeURIComponent(key) + "/recent.csv";
+    const state = await getFeedState(sql, "urlhaus");
     const response = await fetch(endpoint, {
-      headers: { "user-agent": USER_AGENT, "accept": "text/csv" },
+      headers: { "user-agent": USER_AGENT, "accept": "text/csv", ...(state?.etag ? { "if-none-match": state.etag } : {}) },
       signal: AbortSignal.timeout(25000),
       redirect: "error"
     });
+    if (response.status === 304) {
+      await setFeedStatus(sql, "urlhaus", "ok", { etag: state?.etag });
+      return;
+    }
     if (!response.ok) throw new Error("HTTP_" + response.status);
 
     const etag = response.headers.get("etag");
