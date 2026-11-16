@@ -8,7 +8,7 @@ interface DnsData { records: Array<{type:string;value:string;ttl:number|null}>; 
 interface CertificateData { source:string; queriedDomain:string; found:boolean; matchingNames:string[]; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }
 export interface TlsData { subject:string|null; issuer:string|null; notBefore:string|null; notAfter:string|null; expired:boolean|null; daysUntilExpiry:number|null; signatureAlgorithm:string|null; publicKeyAlgorithm:string|null; publicKeyBits:number|null; subjectAltNames:string[]; hostnameMatch:boolean|null; chainLength:number; chainComplete:boolean|null; problems:string[] }
 interface RegistrationData { queriedDomain:string; createdAt:string|null; registrar:string|null; ageDays:number|null }
-interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[]; businessSignals:string[]; businessFindings:Finding[]; payoutVerification:"not_verified_from_public_page"; httpStatus:number|null; contentType:string|null; cachedAt:string|null; source:string }
+interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[]; businessSignals:string[]; businessFindings:Finding[]; payoutVerification:"not_verified_from_public_page"; operatorVerification:"not_independently_verified"; operatorDisclosure:{legalEntityDetected:boolean;contactDetailsDetected:boolean;termsLinkDetected:boolean;privacyLinkDetected:boolean}; httpStatus:number|null; contentType:string|null; cachedAt:string|null; source:string }
 export interface LiveInspection {
   checkedAt: string;
   registrableDomain: string;
@@ -269,10 +269,10 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
     if(/gift card|claim.{0,30}(prize|reward)|you have won|free crypto|guaranteed profit/i.test(text))indicators.push("prize_or_financial_lure");
     if(/wire transfer|bank transfer|payment details|credit card number/i.test(text))indicators.push("payment_data_language");
     if(/this domain is (?:parked|for sale)|domain (?:is )?(?:for sale|available for purchase)|buy this domain|domain parking|parked free|sedo domain parking|afternic/i.test(text)||/resources and information/i.test(title||""))indicators.push("domain_parked_or_for_sale");
-    const businessAssessment=analyzeBusinessClaims(text);
+    const businessAssessment=analyzeBusinessClaims(text,html);
     return {status:"available",errorCode:null,data:{
       title,fetchedUrl,redirected,contentBytes:new TextEncoder().encode(text).byteLength,indicators,
-      businessSignals:businessAssessment.signals,businessFindings:businessAssessment.findings,payoutVerification:businessAssessment.payoutVerification,
+      businessSignals:businessAssessment.signals,businessFindings:businessAssessment.findings,payoutVerification:businessAssessment.payoutVerification,operatorVerification:businessAssessment.operatorVerification,operatorDisclosure:businessAssessment.operatorDisclosure,
       httpStatus:typeof metadata.statusCode==="number"?metadata.statusCode:null,
       contentType:typeof metadata.contentType==="string"?metadata.contentType.slice(0,100):null,
       cachedAt:typeof metadata.cachedAt==="string"?metadata.cachedAt.slice(0,40):null,
