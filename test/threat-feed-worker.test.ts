@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { canonicalUrl, csvObjects, makePhishuntIndicators, parseCsv } from "../feed-worker/index";
+import { canonicalUrl, csvObjects, parseCsv } from "../src/threat-feed-utils";
+import { makePhishuntIndicators } from "../src/phishunt-feed";
 
 describe("threat feed parsing", () => {
   it("parses quoted commas and escaped quote characters", () => {

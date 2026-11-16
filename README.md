@@ -17,9 +17,9 @@
 - Live HTTPS certificate and chain validation through Trustico SSL Tools, including subject, issuer, validity, signature/public-key details and chain problems. Successful results are cached for 12 hours because the provider documents a shared 100 requests/hour limit.
 - Certificate Transparency issuance history from crt.sh, shown separately from the live certificate check.
 - RDAP registration date, registrar and approximate domain age when available.
-- Public page-content inspection through Jina Reader for credential requests, suspicious forms, urgent account-pressure wording, prize lures, crypto-wallet secrets and payment-data language.
-- The content reader receives only the hostname and path. Query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Non-standard ports are not sent to the reader.
-- Redirect reporting compares the final URL reported by the reader with the submitted hostname. It is not a complete network-level redirect trace.
+- Public page-content inspection through Firecrawl keyless scraping for password fields, forms, credential requests, urgent account-pressure wording, prize lures, crypto-wallet secrets and payment-data language. The keyless endpoint is free but rate-limited per source IP.
+- Firecrawl receives only the public hostname and path. Query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Private/reserved DNS targets and non-standard ports are not sent to the provider.
+- Redirect reporting compares the final URL reported by Firecrawl with the submitted hostname. It is not a complete network-level redirect trace.
 
 ### Accounts and API keys
 - Signup, login and logout.
@@ -38,14 +38,14 @@ Open the account workspace at `/account.html`.
 
 ## Threat-intelligence feeds
 
-The repository contains a separate Cloudflare Cron Worker that imports:
+The repository contains a Cloudflare Cron Worker that triggers the protected Pages feed importer every five minutes. The Pages Function uses the existing `DATABASE_URL` secret; the Cron Worker only needs a matching `SYNC_SECRET` and Pages `FEED_SYNC_SECRET`. The feed sources are:
 - **Phishunt** — keyless public phishing-domain feed released under CC0 1.0.
 - **URLhaus** — optional authenticated integration.
 - **PhishTank** — optional authenticated integration.
 
 Indicators are normalized and hashed before storage. Raw feed URLs are not stored. Expired indicators are excluded from matching.
 
-**Deployment state:** the Phishunt importer and five-minute Cron configuration are implemented, and the production database schema supports Phishunt. The separate feed Worker still needs to be deployed and given its encrypted `DATABASE_URL` secret. Cloudflare Pages secrets do not automatically transfer to a separate Worker. Follow [feed-worker/README.md](feed-worker/README.md). Until its first successful sync, the dashboard reports no successful feed sync.
+**Deployment state:** the Phishunt importer and protected Pages endpoint are implemented, and the production database schema supports Phishunt. The separate Cron Worker still needs deployment with `SYNC_SECRET`, and Pages needs the matching `FEED_SYNC_SECRET`. No Neon credential needs to be copied to the Worker. Follow [feed-worker/README.md](feed-worker/README.md). Until its first successful sync, the dashboard reports no successful feed sync.
 
 ## How to use the scanner
 1. Open the public scanner.
@@ -67,7 +67,7 @@ Indicators are normalized and hashed before storage. Raw feed URLs are not store
 ## Security boundaries and known limitations
 - The scanner does not execute submitted-site JavaScript or download files. It is not a full malware sandbox.
 - TLS details are obtained from the Trustico SSL Tools provider; certificate-transparency history is a separate data source.
-- The content reader is a third-party service. Only public hostname/path data is sent to it, and returned page text is treated as untrusted input.
+- Firecrawl is a third-party content extraction service. Only public hostname/path data is sent to it, and returned HTML is treated as untrusted input.
 - Redirect reporting uses the reader's reported final URL, not a complete redirect-by-redirect trace.
 - Email verification and password-reset flows are not configured because no email delivery provider is connected.
 - Feed auto-refresh is not active until the separate Worker has been deployed with its database secret.

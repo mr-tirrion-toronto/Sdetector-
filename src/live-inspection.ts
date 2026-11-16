@@ -6,7 +6,7 @@ interface DnsData { records: Array<{type:string;value:string;ttl:number|null}>; 
 interface CertificateData { source:string; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }
 export interface TlsData { subject:string|null; issuer:string|null; notBefore:string|null; notAfter:string|null; expired:boolean|null; daysUntilExpiry:number|null; signatureAlgorithm:string|null; publicKeyAlgorithm:string|null; publicKeyBits:number|null; chainLength:number; chainComplete:boolean|null; problems:string[] }
 interface RegistrationData { createdAt:string|null; registrar:string|null; ageDays:number|null }
-interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[] }
+interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[]; httpStatus:number|null; contentType:string|null; cachedAt:string|null; source:string }
 export interface LiveInspection {
   checkedAt: string;
   privacy: string;
@@ -53,7 +53,7 @@ function providerErrorCode(error:unknown,fallback:string):string {
   if(error instanceof Error){
     const message=error.message.slice(0,100);
     if(/^(DNS|CT|RDAP|READER|TLS_PROVIDER)_HTTP_\d+$/.test(message))return message;
-    if(["RESPONSE_TOO_LARGE","CT_INVALID_RESPONSE","NO_CERTIFICATE_RECORDS","TLS_PROVIDER_INVALID_RESPONSE","TLS_PROVIDER_RATE_LIMITED","NONSTANDARD_PORT_NOT_SENT_TO_READER"].includes(message))return message;
+    if(["RESPONSE_TOO_LARGE","CT_INVALID_RESPONSE","NO_CERTIFICATE_RECORDS","TLS_PROVIDER_INVALID_RESPONSE","TLS_PROVIDER_RATE_LIMITED","NONSTANDARD_PORT_NOT_SENT_TO_READER","FIRECRAWL_RATE_LIMITED","FIRECRAWL_KEYLESS_CREDITS_EXHAUSTED","FIRECRAWL_INVALID_RESPONSE","NO_VERIFIED_PUBLIC_ADDRESS"].includes(message))return message;
     return (error.name + ":" + message).slice(0,100) || fallback;
   }
   return fallback;
@@ -81,7 +81,7 @@ async function dnsLookup(hostname:string,fetcher:FetchLike):Promise<Check<DnsDat
       const payload=await response.json() as Record<string,unknown>;
       if(!Array.isArray(payload.Answer))return [];
       return payload.Answer.filter(isRecord).slice(0,12).map(answer=>({
-        type:String(answer.type??type),value:String(answer.data??"").slice(0,255),
+        type:({1:"A",28:"AAAA",15:"MX",2:"NS",16:"TXT"} as Record<number,string>)[Number(answer.type)]??String(answer.type??type),value:String(answer.data??"").slice(0,255),
         ttl:typeof answer.TTL==="number"?answer.TTL:null
       }));
     }));
@@ -102,7 +102,7 @@ async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Chec
     if(!Array.isArray(rows))throw new Error("CT_INVALID_RESPONSE");
     const certs=rows.filter(isRecord).map(row=>({
       issued:safeDate(row.not_before),expires:safeDate(row.not_after),
-      commonName:Array.isArray(row.dns_names)?String(row.dns_names.find(name=>String(name).replace(/^\\*\\./,"").toLowerCase()===hostname.toLowerCase())??row.dns_names[0]??"").slice(0,253):null,
+      commonName:Array.isArray(row.dns_names)?String(row.dns_names.find(name=>String(name).replace(/^\*\./,"").toLowerCase()===hostname.toLowerCase())??row.dns_names[0]??"").slice(0,253):null,
       revoked:typeof row.revoked==="boolean"?row.revoked:null
     })).filter(row=>row.issued).sort((a,b)=>Date.parse(b.issued!)-Date.parse(a.issued!));
     const latest=certs[0];
@@ -182,27 +182,62 @@ async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<Regis
     }};
   } catch(error) { return unavailable(providerErrorCode(error,"RDAP_LOOKUP_FAILED")); }
 }
-async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):Promise<Check<WebsiteContentData>> {
+function isPublicIpv4(value:string):boolean {
+  const parts=value.split(".").map(Number);
+  if(parts.length!==4||parts.some(part=>!Number.isInteger(part)||part<0||part>255))return false;
+  const n=parts.reduce((acc,part)=>(acc*256+part)>>>0,0)>>>0;
+  const blocked:Array<[number,number]>=[
+    [0x00000000,0x00ffffff],[0x0a000000,0x0affffff],[0x64400000,0x647fffff],
+    [0x7f000000,0x7fffffff],[0xa9fe0000,0xa9feffff],[0xac100000,0xac1fffff],
+    [0xc0000000,0xc00000ff],[0xc0000200,0xc00002ff],[0xc0586300,0xc05863ff],
+    [0xc0a80000,0xc0a8ffff],[0xc6120000,0xc613ffff],[0xc6336400,0xc63364ff],
+    [0xcb007100,0xcb0071ff],[0xe0000000,0xffffffff]
+  ];
+  return !blocked.some(([low,high])=>n>=low&&n<=high);
+}
+function isPublicIpv6(value:string):boolean {
+  const host=value.toLowerCase().split("%")[0];
+  if(host==="::"||host==="::1"||host.startsWith("::ffff:")||host.startsWith("64:ff9b:")||
+    host.startsWith("2001:db8:")||host.startsWith("2001:0:")||host.startsWith("2002:")||
+    host.startsWith("fc")||host.startsWith("fd")||/^fe[89ab]/.test(host)||host.startsWith("ff"))return false;
+  const first=Number.parseInt(host.split(":")[0]||"0",16);
+  return Number.isFinite(first)&&first>=0x2000&&first<=0x3fff;
+}
+function hasVerifiedPublicAddress(dns:Check<DnsData>):boolean {
+  if(dns.status!=="available"||!dns.data)return false;
+  const addresses=dns.data.records.filter(record=>record.type==="A"||record.type==="AAAA");
+  return addresses.length>0&&addresses.every(record=>record.type==="A"?isPublicIpv4(record.value):isPublicIpv6(record.value));
+}
+async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,dns:Check<DnsData>):Promise<Check<WebsiteContentData>> {
   try {
     const target=new URL(inputUrl);
     target.username="";target.password="";target.search="";target.hash="";
     if(target.port && !["80","443"].includes(target.port))return unavailable("NONSTANDARD_PORT_NOT_SENT_TO_READER");
     if(!safeHost(hostname))return unavailable("HOST_NOT_ELIGIBLE_FOR_REMOTE_READER");
-    // The third-party reader fetches public pages. Query strings are stripped to avoid forwarding tokens or personal data.
-    const endpoint="https://r.jina.ai/"+target.toString();
+    if(!hasVerifiedPublicAddress(dns))return unavailable("NO_VERIFIED_PUBLIC_ADDRESS");
+    const endpoint="https://api.firecrawl.dev/v2/scrape";
     const response=await fetchTimed(fetcher,endpoint,{
-      headers:{
-        accept:"application/json","x-timeout":"6","x-token-budget":"4000",
-        "x-no-cache":"true","x-robots-txt":"true","dnt":"true"
-      },redirect:"follow"
+      method:"POST",
+      headers:{"content-type":"application/json",accept:"application/json"},
+      body:JSON.stringify({
+        url:target.toString(),formats:["html"],onlyMainContent:false,
+        timeout:12000,maxAge:21600000
+      }),
+      redirect:"follow"
     });
-    if(!response.ok)throw new Error("READER_HTTP_"+response.status);
-    const payload=JSON.parse(await readLimited(response)) as unknown;
-    if(!isRecord(payload)||!isRecord(payload.data))throw new Error("READER_INVALID_RESPONSE");
+    if(response.status===429)throw new Error("FIRECRAWL_RATE_LIMITED");
+    if(response.status===402)throw new Error("FIRECRAWL_KEYLESS_CREDITS_EXHAUSTED");
+    if(!response.ok)throw new Error("FIRECRAWL_HTTP_"+response.status);
+    const payload=JSON.parse(await readLimited(response,512*1024)) as unknown;
+    if(!isRecord(payload)||payload.success!==true||!isRecord(payload.data))throw new Error("FIRECRAWL_INVALID_RESPONSE");
     const data=payload.data;
-    const text=typeof data.content==="string"?data.content.slice(0,32000):"";
-    const title=typeof data.title==="string"?data.title.slice(0,240):null;
-    const fetchedUrl=typeof data.finalUrl==="string"?data.finalUrl.slice(0,2048):typeof data.url==="string"?data.url.slice(0,2048):null;
+    const metadata=isRecord(data.metadata)?data.metadata:{};
+    const html=typeof data.html==="string"?data.html.slice(0,32000):"";
+    const markdown=typeof data.markdown==="string"?data.markdown.slice(0,32000):"";
+    const text=html||markdown;
+    const title=typeof metadata.title==="string"?metadata.title.slice(0,240):null;
+    const fetchedUrl=typeof metadata.url==="string"?metadata.url.slice(0,2048):
+      typeof metadata.sourceURL==="string"?metadata.sourceURL.slice(0,2048):null;
     const redirected=Boolean(fetchedUrl&&new URL(fetchedUrl).hostname.toLowerCase()!==hostname.toLowerCase());
     const indicators:string[]=[];
     if(/<input[^>]+type\s*=\s*["']?password/i.test(text)||/password\s*(field|input|form)/i.test(text))indicators.push("password_input");
@@ -212,18 +247,24 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):
     if(/urgent.{0,50}(account|payment|verify|suspend)|account.{0,40}(suspended|locked|limited)|verify.{0,30}immediately/i.test(text))indicators.push("urgent_account_pressure");
     if(/gift card|claim.{0,30}(prize|reward)|you have won|free crypto|guaranteed profit/i.test(text))indicators.push("prize_or_financial_lure");
     if(/wire transfer|bank transfer|payment details|credit card number/i.test(text))indicators.push("payment_data_language");
-    return {status:"available",errorCode:null,data:{title,fetchedUrl,redirected,contentBytes:new TextEncoder().encode(text).byteLength,indicators}};
-  } catch(error) { return unavailable(providerErrorCode(error,"CONTENT_LOOKUP_FAILED")); }
+    return {status:"available",errorCode:null,data:{
+      title,fetchedUrl,redirected,contentBytes:new TextEncoder().encode(text).byteLength,indicators,
+      httpStatus:typeof metadata.statusCode==="number"?metadata.statusCode:null,
+      contentType:typeof metadata.contentType==="string"?metadata.contentType.slice(0,100):null,
+      cachedAt:typeof metadata.cachedAt==="string"?metadata.cachedAt.slice(0,40):null,
+      source:"Firecrawl keyless scrape"
+    }};
+  } catch(error) { return unavailable(providerErrorCode(error,"FIRECRAWL_LOOKUP_FAILED")); }
 }
 
 export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:FetchLike=fetch,cachedTls?:TlsData|null):Promise<LiveInspection> {
   const tlsPromise:Promise<Check<TlsData>>=cachedTls
     ? Promise.resolve({status:"available",errorCode:null,data:cachedTls})
     : tlsLookup(hostname,fetcher);
-  const [dns,certificateTransparency,tls,registration,websiteContent]=await Promise.all([
-    dnsLookup(hostname,fetcher),certificateLookup(hostname,fetcher),tlsPromise,
-    rdapLookup(hostname,fetcher),contentLookup(inputUrl,hostname,fetcher)
+  const [dns,certificateTransparency,tls,registration]=await Promise.all([
+    dnsLookup(hostname,fetcher),certificateLookup(hostname,fetcher),tlsPromise,rdapLookup(hostname,fetcher)
   ]);
+  const websiteContent=await contentLookup(inputUrl,hostname,fetcher,dns);
   const findings:Finding[]=[];
   const add=(code:string,title:string,severity:"info"|"low"|"medium"|"high",points:number,evidence:string,recommendation:string)=>findings.push({code,title,severity,points,evidence,recommendation});
   if(tls.status==="available"&&tls.data){
@@ -246,11 +287,11 @@ export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:
     if(content.indicators.includes("payment_data_language"))add("LIVE_PAYMENT_DATA_LANGUAGE","Page refers to payment or bank details","info",0,"The live page text contains payment or card-data language. This alone is not proof of fraud.","Only provide payment details after independently verifying the merchant and domain.");
   }
   const limitations=[
-    "Live content is retrieved by the Jina Reader service from a public URL. The submitted query string and fragment are removed before the hostname and path are sent to that service.",
-    "The content reader respects robots.txt and does not receive browser cookies, passwords or authentication headers from this scanner.",
+    "Live page content is retrieved through Firecrawl keyless scraping. Only the public hostname and path are sent; query strings, fragments and embedded credentials are removed. Keyless requests are rate-limited per source IP and may be unavailable when the daily allowance is exhausted.",
+    "Firecrawl receives no browser cookies, passwords or authentication headers from this scanner. The scanner checks DNS answers and sends a page for extraction only when all returned A/AAAA addresses are public.",
     "Live TLS certificate details and chain validation are obtained through Trustico SSL Tools. The hostname only is sent to that provider, which has a shared unauthenticated rate limit. Certificate Transparency is a separate public issuance-history source.",
     "Redirect information is limited to the final URL reported by the content reader, not a complete packet-level redirect trace.",
     "Page content can change, be personalised, or be hidden behind JavaScript or access controls. A content check is not a complete malware sandbox."
   ];
-  return {checkedAt:new Date().toISOString(),privacy:"The content reader receives only the URL hostname and path. Query strings, fragments, embedded credentials and browser cookies are not forwarded. The TLS provider receives only the HTTPS hostname and has a shared rate limit of 100 requests per hour.",dns,certificateTransparency,tls,registration,websiteContent,findings,limitations};
+  return {checkedAt:new Date().toISOString(),privacy:"Firecrawl receives only the public URL hostname and path. Query strings, fragments, embedded credentials and browser cookies are not forwarded. The TLS provider receives only the HTTPS hostname and has a shared rate limit of 100 requests per hour.",dns,certificateTransparency,tls,registration,websiteContent,findings,limitations};
 }
