@@ -20,7 +20,7 @@ const BATCH_SIZE = 250;
 const INDICATOR_TTL_HOURS = 48;
 const USER_AGENT = "ScamDetector/1.0 (defensive phishing and malware URL intelligence; https://scam-detector-a92.pages.dev/)";
 
-function parseCsv(input: string): string[][] {
+export function parseCsv(input: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -59,7 +59,7 @@ function parseCsv(input: string): string[][] {
   return rows;
 }
 
-function csvObjects(input: string): Record<string, string>[] {
+export function csvObjects(input: string): Record<string, string>[] {
   const clean = input.split(/\r?\n/).filter(line => !line.trimStart().startsWith("#")).join("\n");
   const rows = parseCsv(clean);
   if (!rows.length) return [];
@@ -71,7 +71,7 @@ function csvObjects(input: string): Record<string, string>[] {
   });
 }
 
-function canonicalUrl(raw: string): { value: string; hostname: string } | null {
+export function canonicalUrl(raw: string): { value: string; hostname: string } | null {
   try {
     const url = new URL(raw.trim());
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
