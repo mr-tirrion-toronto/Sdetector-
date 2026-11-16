@@ -277,7 +277,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
 }
 
 export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:FetchLike=fetch,cachedTls?:TlsData|null):Promise<LiveInspection> {
-  const registrableDomain=getDomain(hostname)||hostname;
+  const registrableDomain=getDomain(hostname,{allowPrivateDomains:true})||hostname;
   const tlsPromise:Promise<Check<TlsData>>=cachedTls
     ? Promise.resolve({status:"available",errorCode:null,data:cachedTls})
     : tlsLookup(hostname,fetcher);
