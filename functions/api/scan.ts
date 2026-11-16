@@ -266,7 +266,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     | "business_claims_need_verification";
 
   if (confirmedThreat) assessmentStatus = "known_threat_detected";
-  else if (findings.some(finding => finding.code.startsWith("BUSINESS_") || finding.code === "DOMAIN_PARKED_OR_FOR_SALE")) assessmentStatus = "business_claims_need_verification";
+  else if (findings.some(finding => (finding.code.startsWith("BUSINESS_") && finding.code !== "BUSINESS_OPERATOR_DETAILS_INCOMPLETE") || finding.code === "DOMAIN_PARKED_OR_FOR_SALE")) assessmentStatus = "business_claims_need_verification";
   else if (findings.some(finding => finding.points > 0)) assessmentStatus = "preliminary_signals_detected";
   else if (domainIntelligence.status === "available" ||
       threatIntelligence.status === "available") assessmentStatus = "no_known_threat_match";
