@@ -70,10 +70,10 @@ Indicators are normalized and hashed before storage. Raw feed URLs are not store
 - Firecrawl is a third-party content extraction service. Only public hostname/path data is sent to it, and returned HTML is treated as untrusted input.
 - Redirect reporting uses the reader's reported final URL, not a complete redirect-by-redirect trace.
 - Email verification and password-reset flows are not configured because no email delivery provider is connected.
-- Feed auto-refresh is not active until the separate Worker has been deployed with its database secret.
+- Phishunt feed auto-refresh runs through a Cloudflare Cron Worker every five minutes; last production verification showed 695 indicators imported and feed status `ok` (16 November 2026).
 - A 0–100 score is a rule-based/provider risk indicator, not a calibrated probability.
 
-See [Scanner Scope](docs/SCANNER_SCOPE.md), [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/ROADMAP.md) and [Security Policy](SECURITY.md).
+See [Scanner Scope](docs/SCANNER_SCOPE.md), [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/ROADMAP.md), [Security Policy](SECURITY.md), [Terms of Service](public/terms.html) and [Privacy Policy](public/privacy.html).
 
 ## Responsible use
 Use Scam Detector for lawful defensive research, fraud prevention and user protection. Only submit URLs you are authorized to investigate. Do not use the service to probe internal systems, bypass access controls, disrupt websites or collect personal information.
