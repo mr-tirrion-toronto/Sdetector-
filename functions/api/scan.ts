@@ -183,7 +183,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
   const domainIntelligence = domainIntelResult.status === "fulfilled"
     ? domainIntelResult.value
-    : { status: "unavailable" as const, checkedAt: null, verdict: null, assessment: null,
+    : { status: "unavailable" as const, errorCode: "LOOKUP_FAILED", checkedAt: null, verdict: null, assessment: null,
         infrastructure: null, registration: null, campaign: null, related: [] };
 
   const externalConfirmed = domainIntelligence.status === "available" &&
@@ -253,7 +253,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       limitations.push("No threat listing was found by PhishDestroy at check time. An unlisted domain is not guaranteed safe.");
     }
   } else {
-    limitations.push("Live domain intelligence was unavailable or rate-limited. This is not a clean verdict.");
+    limitations.push("Live domain intelligence was unavailable or rate-limited (" + (domainIntelligence.errorCode ?? "unknown") + "). This is not a clean verdict.");
   }
 
   const scanResult = {
