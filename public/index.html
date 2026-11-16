@@ -150,7 +150,8 @@ function renderResult(data){
     (pageData.title?'<div class="feed-row"><span>Page title</span><b>'+escapeHtml(pageData.title)+'</b></div>':'')+
     (pageData.indicators?.length?'<div class="feed-row"><span>Content signals</span><b>'+escapeHtml(pageData.indicators.join(', '))+'</b></div>':'')+
     '<p class="feed-note">'+escapeHtml(live.privacy||'External content inspection may be incomplete. A missing signal is not proof of safety.')+'</p></div>';
-  const badgeClass=knownThreat?'critical':(assessment==='no_known_threat_match'?'insufficient':level);
+  const neutralAssessment=['no_known_threat_match','threat_intel_partial','threat_intel_unavailable','insufficient_evidence'].includes(assessment);
+  const badgeClass=knownThreat?'critical':(neutralAssessment?'insufficient':level);
   const labels={
     known_threat_detected:'KNOWN THREAT MATCH',
     no_known_threat_match:'NO KNOWN THREAT MATCH',
@@ -174,7 +175,7 @@ function renderResult(data){
   resultEl.innerHTML=
     '<div class="result-top"><div><div class="result-domain">'+escapeHtml(data.hostname)+'</div><div class="result-meta">Scan ID · '+escapeHtml(data.scanId)+'</div></div>'+
     '<div class="risk '+badgeClass+'"><b>'+Number(data.score)+'/100</b><span>'+badgeText+'</span></div></div>'+
-    '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(knownThreat?'#ff7185':assessment==='no_known_threat_match'?'#9db0c6':riskColor(level))+'"></div></div>'+
+    '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(knownThreat?'#ff7185':neutralAssessment?'#9db0c6':riskColor(level))+'"></div></div>'+
     '<div class="feed-panel"><strong>Threat intelligence · '+escapeHtml(intelLabel)+'</strong>'+
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
