@@ -14,7 +14,7 @@
 
 ### Live technical checks
 - Public DNS A, AAAA, MX, NS and TXT lookups through Cloudflare DNS-over-HTTPS.
-- Live HTTPS certificate and chain validation through Trustico SSL Tools, including subject, issuer, validity, signature/public-key details and chain problems. Successful results are cached for 12 hours because the provider documents a shared 100 requests/hour limit.
+- Live HTTPS certificate and chain validation through Trustico SSL Tools, including subject, issuer, validity, signature/public-key details, SAN-based hostname coverage and chain problems. RDAP and Certificate Transparency queries use the registrable domain, while TLS and DNS checks use the exact hostname. Successful results are cached for 12 hours because the provider documents a shared 100 requests/hour limit.
 - Certificate Transparency issuance history from crt.sh, shown separately from the live certificate check.
 - RDAP registration date, registrar and approximate domain age when available.
 - Public page-content inspection through Firecrawl keyless scraping for password fields, forms, credential requests, urgent account-pressure wording, prize lures, crypto-wallet secrets and payment-data language. The keyless endpoint is free but rate-limited per source IP.
