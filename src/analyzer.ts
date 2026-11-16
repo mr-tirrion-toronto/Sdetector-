@@ -138,7 +138,7 @@ export function analyzeUrl(input: string): ScanResult {
     findings,
     limitations: [
       "This is a preliminary URL-pattern assessment, not a verdict that a website is safe or fraudulent.",
-      "No live website fetch, DNS, domain-age, certificate, redirect-chain or third-party reputation checks are performed yet.",
+      "Live DNS, certificate-transparency, RDAP, public page-content and threat-provider checks are performed separately when those services respond. This is not a full malware sandbox or a complete live TLS/redirect-chain audit.",
       "A score of 0 means no configured URL-pattern signals were detected; it does not mean the website is verified safe.",
       "Assessment confidence is limited until independent reputation and live technical evidence are available."
     ]
