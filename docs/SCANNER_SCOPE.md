@@ -12,8 +12,8 @@
 - **Live TLS:** Trustico SSL Tools retrieves the current HTTPS certificate and chain, including subject, issuer, validity dates, key details and chain-validation problems. Only the HTTPS hostname is sent. The provider documents a shared unauthenticated limit of 100 requests/hour; successful results are cached in Neon for 12 hours.
 - **Certificate Transparency:** crt.sh issuance history is shown separately from the live TLS result.
 - **Domain registration:** RDAP registration date, approximate age and registrar when available.
-- **Page content:** Jina Reader inspects public page text for credential requests, suspicious forms, urgent account-pressure wording, prize lures, crypto-wallet secrets and payment-data language. The hostname and path are sent; query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Non-standard ports are not sent to the reader.
-- **Redirects:** the reader's reported final URL is compared with the submitted hostname. This is not a complete redirect-by-redirect network trace.
+- **Page content:** Firecrawl keyless scraping inspects public HTML for password fields, forms, one-time-code requests, wallet secrets, urgent account-pressure wording, prize lures and payment-data language. Only the hostname and path are sent; query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. The scanner checks public DNS answers and refuses to send a hostname to the content provider if any returned A/AAAA address is private or reserved. Non-standard ports are not sent. Firecrawl keyless requests are free but rate-limited per source IP and may return HTTP 429 when the daily allowance is exhausted.
+- **Redirects:** Firecrawl's reported final URL is compared with the submitted hostname. This is not a complete redirect-by-redirect network trace.
 - Provider failures, timeouts and rate limits are shown as unavailable intelligence, never as a clean verdict.
 
 ## Scheduled threat-intelligence feeds
@@ -54,7 +54,7 @@
 - The 0–100 score is a rule-based/provider risk indicator, not a calibrated probability.
 
 ## Remaining boundaries
-- Complete redirect-chain capture is not implemented; only the final URL reported by the reader is compared.
+- Complete redirect-chain capture is not implemented; only the final URL reported by Firecrawl is compared.
 - A full browser-isolated malware sandbox, JavaScript behavior analysis and downloaded-file detonation are not implemented.
 - The active TLS result is provided by Trustico, while Certificate Transparency history is a separate source. A provider outage or rate limit may leave TLS data unavailable.
 - Email verification and password-reset flows require an email provider.
