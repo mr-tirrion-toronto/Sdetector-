@@ -154,10 +154,10 @@ async function setFeedStatus(
 
 async function getFeedState(sql: any, source: "urlhaus" | "phishtank") {
   const rows = await sql`
-    SELECT etag, last_success_at, last_checked_at
+    SELECT etag, last_success_at, last_checked_at, item_count
     FROM threat_feed_status WHERE source = ${source}
   `;
-  return (rows as unknown as Array<{ etag?: string | null; last_success_at?: string | null; last_checked_at?: string | null }>)[0];
+  return (rows as unknown as Array<{ etag?: string | null; last_success_at?: string | null; last_checked_at?: string | null; item_count?: number }>)[0];
 }
 
 async function upsertIndicators(
@@ -247,7 +247,7 @@ async function syncUrlhaus(sql: any, key?: string): Promise<void> {
       redirect: "error"
     });
     if (response.status === 304) {
-      await setFeedStatus(sql, "urlhaus", "ok", { etag: state?.etag });
+      await setFeedStatus(sql, "urlhaus", "ok", { etag: state?.etag, itemCount: Number(state?.item_count ?? 0), success: true });
       return;
     }
     if (!response.ok) throw new Error("HTTP_" + response.status);
@@ -294,7 +294,7 @@ async function syncPhishTank(sql: any, key?: string): Promise<void> {
     const lastSuccess = state?.last_success_at ? new Date(state.last_success_at).getTime() : 0;
     const recentlySyncedWithoutEtag = !etag && lastSuccess > 0 && Date.now() - lastSuccess < 60 * 60 * 1000;
     if ((etag && state?.etag === etag && state?.last_success_at) || recentlySyncedWithoutEtag) {
-      await setFeedStatus(sql, "phishtank", "ok", { etag: etag ?? state?.etag });
+      await setFeedStatus(sql, "phishtank", "ok", { etag: etag ?? state?.etag, itemCount: Number(state?.item_count ?? 0), success: Boolean(etag && state?.etag === etag) });
       return;
     }
 
