@@ -283,9 +283,8 @@ async function syncUrlhaus(sql: any, key?: string): Promise<void> {
     const state = await getFeedState(sql, "urlhaus");
     const response = await fetchWithTimeout(endpoint, {
       headers: { "user-agent": USER_AGENT, "accept": "text/csv", ...(state?.etag ? { "if-none-match": state.etag } : {}) },
-      25000}, 
       redirect: "error"
-    );
+    }, 25000);
     if (response.status === 304) {
       await setFeedStatus(sql, "urlhaus", "ok", { etag: state?.etag, itemCount: Number(state?.item_count ?? 0), success: true });
       return;
@@ -325,9 +324,8 @@ async function syncPhishTank(sql: any, key?: string): Promise<void> {
     const head = await fetchWithTimeout(endpoint, {
       method: "HEAD",
       headers: { "user-agent": USER_AGENT },
-      12000}, 
       redirect: "error"
-    );
+    }, 12000);
 
     if (!head.ok) throw new Error("HEAD_HTTP_" + head.status);
     const etag = head.headers.get("etag");
@@ -340,9 +338,8 @@ async function syncPhishTank(sql: any, key?: string): Promise<void> {
 
     const response = await fetchWithTimeout(endpoint, {
       headers: { "user-agent": USER_AGENT, "accept": "application/gzip" },
-      30000}, 
       redirect: "error"
-    );
+    }, 30000);
     if (!response.ok) throw new Error("GET_HTTP_" + response.status);
 
     const compressed = response.body;
@@ -377,9 +374,8 @@ async function syncPhishunt(sql: any): Promise<void> {
         "accept": "text/plain",
         ...(state?.etag ? { "if-none-match": state.etag } : {})
       },
-      20000}, 
       redirect: "error"
-    );
+    }, 20000);
     if (response.status === 304) {
       await setFeedStatus(sql, source, "ok", {
         etag: state?.etag,
