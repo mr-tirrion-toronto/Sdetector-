@@ -218,7 +218,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const confirmedThreat = threatIntelligence.matched || externalConfirmed;
   const externalScore = domainIntelligence.status === "available"
-    ? Number(domainIntelligence.assessment?.score ?? domainIntelligence.verdict?.riskScore ?? 0)
+    ? Math.round((Number(domainIntelligence.assessment?.score ?? domainIntelligence.verdict?.riskScore ?? 0) /
+        Number(domainIntelligence.assessment?.maxScore ?? 100)) * 100)
     : 0;
   const score = confirmedThreat ? 100 : Math.max(result.score, Math.min(100, externalScore));
   const riskLevel = score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "guarded" : "low";
