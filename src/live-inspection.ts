@@ -92,8 +92,9 @@ async function dnsLookup(hostname:string,fetcher:FetchLike):Promise<Check<DnsDat
 }
 async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Check<CertificateData>> {
   try {
-    const url=new URL("https://crt.sh/");
-    url.searchParams.set("q",hostname);url.searchParams.set("output","json");
+    const url=new URL("https://api.certspotter.com/v1/issuances");
+    url.searchParams.set("domain",hostname);url.searchParams.set("include_subdomains","true");
+    url.searchParams.set("expand","dns_names");url.searchParams.set("limit","100");
     const response=await fetchTimed(fetcher,url.toString(),{headers:{accept:"application/json"},redirect:"follow"});
     if(!response.ok)throw new Error("CT_HTTP_"+response.status);
     const raw=await readLimited(response,512*1024);
@@ -101,14 +102,14 @@ async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Chec
     if(!Array.isArray(rows))throw new Error("CT_INVALID_RESPONSE");
     const certs=rows.filter(isRecord).map(row=>({
       issued:safeDate(row.not_before),expires:safeDate(row.not_after),
-      issuer:typeof row.issuer_name==="string"?row.issuer_name.slice(0,180):null,
-      commonName:typeof row.common_name==="string"?row.common_name.slice(0,253):null
+      commonName:Array.isArray(row.dns_names)?String(row.dns_names.find(name=>String(name).replace(/^\\*\\./,"").toLowerCase()===hostname.toLowerCase())??row.dns_names[0]??"").slice(0,253):null,
+      revoked:typeof row.revoked==="boolean"?row.revoked:null
     })).filter(row=>row.issued).sort((a,b)=>Date.parse(b.issued!)-Date.parse(a.issued!));
     const latest=certs[0];
     if(!latest)return unavailable("NO_CERTIFICATE_RECORDS");
     return {status:"available",errorCode:null,data:{
-      source:"Certificate Transparency (crt.sh)",latestIssuedAt:latest.issued,
-      latestExpiresAt:latest.expires,issuer:latest.issuer,commonName:latest.commonName,
+      source:"Certificate Transparency (Cert Spotter)",latestIssuedAt:latest.issued,
+      latestExpiresAt:latest.expires,issuer:null,commonName:latest.commonName,
       expired:latest.expires?Date.parse(latest.expires)<Date.now():null
     }};
   } catch(error) { return unavailable(providerErrorCode(error,"CT_LOOKUP_FAILED")); }
@@ -144,7 +145,25 @@ async function tlsLookup(hostname:string,fetcher:FetchLike):Promise<Check<TlsDat
 }
 async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<RegistrationData>> {
   try {
-    const response=await fetchTimed(fetcher,"https://rdap.org/domain/"+encodeURIComponent(hostname),{
+    const bootstrapResponse=await fetchTimed(fetcher,"https://data.iana.org/rdap/dns.json",{
+      headers:{accept:"application/json"},redirect:"follow"
+    });
+    if(!bootstrapResponse.ok)throw new Error("RDAP_BOOTSTRAP_HTTP_"+bootstrapResponse.status);
+    const bootstrap=await bootstrapResponse.json() as Record<string,unknown>;
+    const services=Array.isArray(bootstrap.services)?bootstrap.services:[];
+    const labels=hostname.toLowerCase().split(".");
+    let baseUrl:string|null=null;
+    for(let i=0;i<labels.length;i++){
+      const suffix=labels.slice(i).join(".");
+      const service=services.find(item=>Array.isArray(item)&&Array.isArray(item[0])&&
+        (item[0] as unknown[]).some(value=>String(value).toLowerCase()===suffix));
+      if(service&&Array.isArray(service)&&Array.isArray(service[1])&&typeof service[1][0]==="string"){
+        baseUrl=service[1][0];break;
+      }
+    }
+    if(!baseUrl||!baseUrl.startsWith("https://"))throw new Error("RDAP_SERVER_NOT_FOUND");
+    const endpoint=new URL("domain/"+encodeURIComponent(hostname),baseUrl.endsWith("/")?baseUrl:baseUrl+"/");
+    const response=await fetchTimed(fetcher,endpoint.toString(),{
       headers:{accept:"application/rdap+json"},redirect:"follow"
     });
     if(!response.ok)throw new Error("RDAP_HTTP_"+response.status);
@@ -155,7 +174,8 @@ async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<Regis
     const entities=Array.isArray(payload.entities)?payload.entities.filter(isRecord):[];
     const registrar=entities.find(entity=>Array.isArray(entity.roles)&&entity.roles.includes("registrar"));
     const vcard=Array.isArray(registrar?.vcardArray)?registrar?.vcardArray[1]:null;
-    const registrarName=Array.isArray(vcard)&&Array.isArray(vcard[1])?String(vcard[1][3]??"").slice(0,180):null;
+    const fn=Array.isArray(vcard)?vcard.find(item=>Array.isArray(item)&&item[0]==="fn"):null;
+    const registrarName=Array.isArray(fn)?String(fn[3]??"").slice(0,180):null;
     return {status:"available",errorCode:null,data:{
       createdAt:created,registrar:registrarName||null,
       ageDays:created?Math.max(0,Math.floor((Date.now()-Date.parse(created))/86400000)):null
@@ -182,7 +202,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):
     const data=payload.data;
     const text=typeof data.content==="string"?data.content.slice(0,32000):"";
     const title=typeof data.title==="string"?data.title.slice(0,240):null;
-    const fetchedUrl=typeof data.url==="string"?data.url.slice(0,2048):null;
+    const fetchedUrl=typeof data.finalUrl==="string"?data.finalUrl.slice(0,2048):typeof data.url==="string"?data.url.slice(0,2048):null;
     const redirected=Boolean(fetchedUrl&&new URL(fetchedUrl).hostname.toLowerCase()!==hostname.toLowerCase());
     const indicators:string[]=[];
     if(/<input[^>]+type\s*=\s*["']?password/i.test(text)||/password\s*(field|input|form)/i.test(text))indicators.push("password_input");
