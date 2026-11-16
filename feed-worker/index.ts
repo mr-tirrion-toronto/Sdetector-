@@ -62,12 +62,14 @@ export function parseCsv(input: string): string[][] {
 export function csvObjects(input: string): Record<string, string>[] {
   const lines = input.split(/\r?\n/);
   const headerIndex = lines.findIndex(line => {
-    const candidate = line.trimStart().replace(/^#\\s*/, "").toLowerCase();
+    const trimmed = line.trimStart();
+    const candidate = (trimmed.startsWith("#") ? trimmed.slice(1).trimStart() : trimmed).toLowerCase();
     return candidate.startsWith("id,dateadded,url,") || candidate.startsWith("phish_id,url,");
   });
   if (headerIndex < 0) return [];
 
-  const header = lines[headerIndex].trimStart().replace(/^#\\s*/, "");
+  const headerLine = lines[headerIndex].trimStart();
+  const header = headerLine.startsWith("#") ? headerLine.slice(1).trimStart() : headerLine;
   const dataLines = lines.slice(headerIndex + 1)
     .filter(line => line.trim().length > 0 && !line.trimStart().startsWith("#"));
   const rows = parseCsv([header, ...dataLines].join("\n"));
