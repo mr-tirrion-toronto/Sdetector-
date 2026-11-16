@@ -116,7 +116,7 @@ async function readBounded(response: Response, maxBytes = MAX_FEED_BYTES): Promi
 }
 
 async function setFeedStatus(
-  sql: ReturnType<typeof neon>,
+  sql: any,
   source: "urlhaus" | "phishtank",
   status: "ok" | "error" | "not_configured",
   details: { etag?: string | null; itemCount?: number; errorCode?: string; success?: boolean } = {}
@@ -141,16 +141,16 @@ async function setFeedStatus(
   `;
 }
 
-async function getFeedState(sql: ReturnType<typeof neon>, source: "urlhaus" | "phishtank") {
+async function getFeedState(sql: any, source: "urlhaus" | "phishtank") {
   const rows = await sql`
     SELECT etag, last_success_at, last_checked_at
     FROM threat_feed_status WHERE source = ${source}
   `;
-  return rows[0] as { etag?: string | null; last_success_at?: string | null; last_checked_at?: string | null } | undefined;
+  return (rows as unknown as Array<{ etag?: string | null; last_success_at?: string | null; last_checked_at?: string | null }>)[0];
 }
 
 async function upsertIndicators(
-  sql: ReturnType<typeof neon>,
+  sql: any,
   source: "urlhaus" | "phishtank",
   indicators: Indicator[]
 ): Promise<void> {
@@ -216,7 +216,7 @@ async function makeIndicators(
   return result;
 }
 
-async function syncUrlhaus(sql: ReturnType<typeof neon>, key?: string): Promise<void> {
+async function syncUrlhaus(sql: any, key?: string): Promise<void> {
   if (!key) {
     await setFeedStatus(sql, "urlhaus", "not_configured", { errorCode: "MISSING_AUTH_KEY" });
     return;
@@ -258,7 +258,7 @@ async function syncUrlhaus(sql: ReturnType<typeof neon>, key?: string): Promise<
   }
 }
 
-async function syncPhishTank(sql: ReturnType<typeof neon>, key?: string): Promise<void> {
+async function syncPhishTank(sql: any, key?: string): Promise<void> {
   if (!key) {
     await setFeedStatus(sql, "phishtank", "not_configured", { errorCode: "MISSING_APP_KEY" });
     return;
