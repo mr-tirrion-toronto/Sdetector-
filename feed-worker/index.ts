@@ -20,6 +20,20 @@ const BATCH_SIZE = 250;
 const INDICATOR_TTL_HOURS = 48;
 const USER_AGENT = "ScamDetector/1.0 (defensive phishing and malware URL intelligence; https://scam-detector-a92.pages.dev/)";
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export function parseCsv(input: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -267,11 +281,10 @@ async function syncUrlhaus(sql: any, key?: string): Promise<void> {
     const endpoint = "https://urlhaus-api.abuse.ch/v2/files/exports/" +
       encodeURIComponent(key) + "/recent.csv";
     const state = await getFeedState(sql, "urlhaus");
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
       headers: { "user-agent": USER_AGENT, "accept": "text/csv", ...(state?.etag ? { "if-none-match": state.etag } : {}) },
-      signal: AbortSignal.timeout(25000),
       redirect: "error"
-    });
+    }, 25000);
     if (response.status === 304) {
       await setFeedStatus(sql, "urlhaus", "ok", { etag: state?.etag, itemCount: Number(state?.item_count ?? 0), success: true });
       return;
@@ -308,12 +321,11 @@ async function syncPhishTank(sql: any, key?: string): Promise<void> {
   const endpoint = "https://data.phishtank.com/data/" + encodeURIComponent(key) + "/online-valid.csv.gz";
   try {
     const state = await getFeedState(sql, "phishtank");
-    const head = await fetch(endpoint, {
+    const head = await fetchWithTimeout(endpoint, {
       method: "HEAD",
       headers: { "user-agent": USER_AGENT },
-      signal: AbortSignal.timeout(12000),
       redirect: "error"
-    });
+    }, 12000);
 
     if (!head.ok) throw new Error("HEAD_HTTP_" + head.status);
     const etag = head.headers.get("etag");
@@ -324,11 +336,10 @@ async function syncPhishTank(sql: any, key?: string): Promise<void> {
       return;
     }
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
       headers: { "user-agent": USER_AGENT, "accept": "application/gzip" },
-      signal: AbortSignal.timeout(30000),
       redirect: "error"
-    });
+    }, 30000);
     if (!response.ok) throw new Error("GET_HTTP_" + response.status);
 
     const compressed = response.body;
@@ -357,15 +368,14 @@ async function syncPhishunt(sql: any): Promise<void> {
   const endpoint = "https://raw.githubusercontent.com/0xDanielLopez/phishunt-feed/main/feed.txt";
   try {
     const state = await getFeedState(sql, source);
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
       headers: {
         "user-agent": USER_AGENT,
         "accept": "text/plain",
         ...(state?.etag ? { "if-none-match": state.etag } : {})
       },
-      signal: AbortSignal.timeout(20000),
       redirect: "error"
-    });
+    }, 20000);
     if (response.status === 304) {
       await setFeedStatus(sql, source, "ok", {
         etag: state?.etag,
