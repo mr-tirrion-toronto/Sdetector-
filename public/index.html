@@ -130,7 +130,7 @@ function renderResult(data){
   const domainPanel='<div class="feed-panel"><strong>Live domain intelligence · '+(domainIntel.status==='available'?'Provider checked':domainIntel.status==='rate_limited'?'Provider rate-limited':'Unavailable')+'</strong>'+
     '<div class="feed-row"><span>Provider verdict</span><b>'+escapeHtml(verdictLabels[verdict.status]||'Unavailable')+'</b></div>'+
     (verdict.threat?'<div class="feed-row"><span>Matched domain</span><b>'+escapeHtml(verdict.matchedDomain||data.hostname)+'</b></div>':'')+
-    (domainIntel.assessment?'<div class="feed-row"><span>Pattern assessment</span><b>'+escapeHtml(domainIntel.assessment.risk)+' · '+Number(domainIntel.assessment.score||0)+'/100</b></div>':'')+
+    (domainIntel.assessment?'<div class="feed-row"><span>Pattern assessment</span><b>'+escapeHtml(domainIntel.assessment.risk)+' · '+Number(domainIntel.assessment.score||0)+'/'+Number(domainIntel.assessment.maxScore||100)+'</b></div>':'')+
     (domainDetails.length?domainDetails.map(item=>'<div class="feed-row"><span>'+escapeHtml(item)+'</span></div>').join(''):'')+
     '<p class="feed-note">'+(domainIntel.status==='available'?'Only the hostname is sent to PhishDestroy; the full URL path and query are not shared. A non-listed result is not proof of safety.':'Live domain intelligence could not be confirmed. This is not a clean verdict.')+'</p></div>';
   const badgeClass=knownThreat?'critical':(assessment==='no_known_threat_match'?'insufficient':level);
