@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { inspectLiveDomain } from "../src/live-inspection";
 
-function providers(options: { firecrawlStatus?: number; address?: string } = {}) {
-  let requestedUrl = "";
+function providers(options: { firecrawlStatus?: number; address?: string; sans?: string[]; ctNames?: string[] } = {}) {
+  let requestedUrl = "";\n  let requestedRdapUrl = "";
   const fetcher: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url === "https://tools.trustico.com/api/chain/analyze-url") {
@@ -20,7 +20,7 @@ function providers(options: { firecrawlStatus?: number; address?: string } = {})
         : [] });
     }
     if (url.startsWith("https://api.certspotter.com/v1/issuances")) {
-      return Response.json([{ not_before: "2026-01-01T00:00:00Z", not_after: "2027-01-01T00:00:00Z", dns_names: ["example.com"] }]);
+      return Response.json([{ not_before: "2026-01-01T00:00:00Z", not_after: "2027-01-01T00:00:00Z", dns_names: options.ctNames ?? ["example.com"] }]);
     }
     if (url === "https://data.iana.org/rdap/dns.json") {
       return Response.json({ services: [[["com"], ["https://rdap.verisign.com/com/v1/"]]] });
@@ -36,12 +36,12 @@ function providers(options: { firecrawlStatus?: number; address?: string } = {})
       }
       return Response.json({ success: true, data: {
         html: '<form><input type="password"></form> Verify your account immediately',
-        metadata: { title: "Account verification", url: "https://example.com/login", statusCode: 200, contentType: "text/html" }
+        metadata: { title: "Account verification", url: body.url, statusCode: 200, contentType: "text/html" }
       } });
     }
     throw new Error("Unexpected provider URL: " + url);
   };
-  return { fetcher, getRequestedUrl: () => requestedUrl };
+  return { fetcher, getRequestedUrl: () => requestedUrl, getRequestedRdapUrl: () => requestedRdapUrl };
 }
 
 describe("inspectLiveDomain", () => {
@@ -52,8 +52,8 @@ describe("inspectLiveDomain", () => {
     expect(result.dns.data?.records[0]?.value).toBe("93.184.216.34");
     expect(result.certificateTransparency.status).toBe("available");
     expect(result.tls.status).toBe("available");
-    expect(result.tls.data?.chainComplete).toBe(true);
-    expect(result.registration.status).toBe("available");
+    expect(result.tls.data?.chainComplete).toBe(true);\n    expect(result.tls.data?.hostnameMatch).toBe(true);\n    expect(result.tls.data?.subjectAltNames).toContain("example.com");
+    expect(result.registration.status).toBe("available");\n    expect(result.registration.data?.queriedDomain).toBe("example.com");\n    expect(result.certificateTransparency.data?.found).toBe(true);
     expect(result.websiteContent.status).toBe("available");
     expect(result.websiteContent.data?.source).toBe("Firecrawl keyless scrape");
     expect(result.websiteContent.data?.indicators).toContain("password_input");
