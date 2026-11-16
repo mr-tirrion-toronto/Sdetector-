@@ -25,7 +25,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       sql`SELECT TO_CHAR(day, 'Dy') AS day_label,
                  TO_CHAR(day, 'YYYY-MM-DD') AS day,
                  COALESCE(scan_count, 0)::int AS count
-          FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS day
+          FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS days(day)
           LEFT JOIN (
             SELECT DATE(created_at) AS scan_day, COUNT(*)::int AS scan_count
             FROM scans WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
