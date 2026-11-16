@@ -18,7 +18,7 @@
     .disclaimer{margin:62px 0 34px;padding:17px 19px;border:1px solid #ffc66d35;background:#ffc66d0b;border-radius:14px;color:#d4c3a5;font-size:11px}.disclaimer strong{color:var(--amber)}footer{border-top:1px solid #ffffff12;padding:24px 0 34px;color:#71869d;font-size:10px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.footer-brand{color:#c9d9e9;font-weight:800}
     @media(max-width:680px){.shell{width:min(100% - 24px,1120px)}header{height:66px}.nav{display:none}.hero{padding:55px 0 30px}.hero-copy{font-size:14px}.scanner{padding:18px;border-radius:19px}.input-wrap{flex-direction:column}.primary{width:100%}.grid{grid-template-columns:1fr}.workflow{grid-template-columns:1fr;gap:23px}.trustline{gap:10px 15px}.section{padding-top:55px}.result-top{align-items:flex-start}.risk{min-width:100px}.scan-head small{display:none}}
     @media print{body{background:#fff;color:#111}.shell>header,.hero,.section,.disclaimer,footer,.scanner form,.scan-head,.input-hint,.result-actions{display:none!important}.shell{width:100%}.scanner{display:block;margin:0;border:0;box-shadow:none;background:#fff;color:#111;padding:0}.result{display:block!important}.result-meta,.finding p,.limitations{color:#333}.finding{border-color:#ddd}.risk{color:#111!important;border-color:#888!important}}
-  </style>
+  .feed-panel{margin-top:18px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:#0a1726}.feed-panel strong{display:block;margin-bottom:6px}.feed-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;color:var(--muted);font-size:12px}.feed-row b{color:var(--text);font-weight:600}.feed-note{color:var(--muted);font-size:12px;margin:8px 0 0}</style>
 </head>
 <body>
 <div class="shell">
@@ -108,22 +108,46 @@ form.addEventListener('submit',async event=>{
 
 function renderResult(data){
   const level=String(data.riskLevel||'unknown').toLowerCase();
-  const insufficient=data.assessmentStatus==='insufficient_evidence';
+  const assessment=String(data.assessmentStatus||'insufficient_evidence');
+  const knownThreat=assessment==='known_threat_detected';
   const findings=Array.isArray(data.findings)?data.findings:[];
-  const badgeClass=insufficient?'insufficient':level;
-  const badgeText=insufficient?'INSUFFICIENT EVIDENCE':'PRELIMINARY '+level.toUpperCase()+' SIGNALS';
+  const intel=data.threatIntelligence||{status:'not_configured',feeds:[]};
+  const badgeClass=knownThreat?'critical':(assessment==='no_known_threat_match'?'insufficient':level);
+  const labels={
+    known_threat_detected:'KNOWN THREAT MATCH',
+    no_known_threat_match:'NO KNOWN THREAT MATCH',
+    threat_intel_partial:'PARTIAL INTELLIGENCE',
+    threat_intel_unavailable:'INTELLIGENCE UNAVAILABLE',
+    insufficient_evidence:'INSUFFICIENT EVIDENCE',
+    preliminary_signals_detected:'PRELIMINARY URL SIGNALS'
+  };
+  const badgeText=labels[assessment]||'PRELIMINARY ASSESSMENT';
+  const feedRows=(Array.isArray(intel.feeds)?intel.feeds:[]).map(feed=>{
+    const feedName=String(feed.source||'feed').toUpperCase();
+    const feedStatus=String(feed.status||'unknown');
+    const statusLabel=feedStatus==='ok'?'Current':feedStatus==='stale'?'Stale':feedStatus==='not_configured'?'Not configured':'Unavailable';
+    const date=feed.lastUpdatedAt?new Date(feed.lastUpdatedAt).toLocaleString():'No successful sync yet';
+    return '<div class="feed-row"><span>'+escapeHtml(feedName)+' · '+escapeHtml(statusLabel)+'</span><b>'+escapeHtml(date)+'</b></div>';
+  }).join('');
+  const intelLabel=intel.status==='available'?'Feeds available':intel.status==='partial'?'Some feeds unavailable':intel.status==='unavailable'?'Feeds unavailable':'Feeds not configured';
+  const intelNote=knownThreat?'A matching indicator was found in a threat-intelligence source.':
+    intel.status==='available'?'No exact match was found in the current feeds. New or unreported threats may still exist.':
+    'A missing match is not evidence that the website is safe.';
   resultEl.innerHTML=
     '<div class="result-top"><div><div class="result-domain">'+escapeHtml(data.hostname)+'</div><div class="result-meta">Scan ID · '+escapeHtml(data.scanId)+'</div></div>'+
     '<div class="risk '+badgeClass+'"><b>'+Number(data.score)+'/100</b><span>'+badgeText+'</span></div></div>'+
-    '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(insufficient?'#9db0c6':riskColor(level))+'"></div></div>'+
-    '<div class="finding-title">Detected URL signals · '+findings.length+'</div>'+
-    (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No configured warning patterns were detected. This result is inconclusive, not a clean bill of health.</div>')+
+    '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(knownThreat?'#ff7185':assessment==='no_known_threat_match'?'#9db0c6':riskColor(level))+'"></div></div>'+
+    '<div class="feed-panel"><strong>Threat intelligence · '+escapeHtml(intelLabel)+'</strong>'+
+    (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
+    '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
+    '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
+    (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No configured warning patterns or known-feed matches were found. This is not a safety guarantee.</div>')+
     '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
     '<div class="result-actions"><button class="secondary" id="print-report" type="button">Print / Save as PDF</button><button class="secondary" id="copy-summary" type="button">Copy summary</button></div>';
   resultEl.style.display='block';
   document.querySelector('#print-report').addEventListener('click',()=>window.print());
   document.querySelector('#copy-summary').addEventListener('click',async()=>{
-    const summary='Scam Detector report\nWebsite: '+data.hostname+'\nURL signal score: '+data.score+'/100\nAssessment: '+badgeText+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No configured URL-pattern warnings detected.')+'\n\nThis is a limited preliminary assessment, not a safety guarantee.';
+    const summary='Scam Detector report\nWebsite: '+data.hostname+'\nScore: '+data.score+'/100\nAssessment: '+badgeText+'\nThreat intelligence: '+intelLabel+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No configured warning patterns or known-feed matches found.')+'\n\nA missing match is not proof that a website is safe.';
     try{await navigator.clipboard.writeText(summary);statusEl.textContent='Report summary copied.'}catch{statusEl.textContent='Clipboard unavailable in this browser. Use Print / Save as PDF instead.'}
   });
 }
