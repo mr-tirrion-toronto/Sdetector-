@@ -280,8 +280,10 @@ async function syncPhishTank(sql: any, key?: string): Promise<void> {
 
     if (!head.ok) throw new Error("HEAD_HTTP_" + head.status);
     const etag = head.headers.get("etag");
-    if (etag && state?.etag === etag && state?.last_success_at) {
-      await setFeedStatus(sql, "phishtank", "ok", { etag });
+    const lastSuccess = state?.last_success_at ? new Date(state.last_success_at).getTime() : 0;
+    const recentlySyncedWithoutEtag = !etag && lastSuccess > 0 && Date.now() - lastSuccess < 60 * 60 * 1000;
+    if ((etag && state?.etag === etag && state?.last_success_at) || recentlySyncedWithoutEtag) {
+      await setFeedStatus(sql, "phishtank", "ok", { etag: etag ?? state?.etag });
       return;
     }
 
