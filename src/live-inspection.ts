@@ -65,7 +65,7 @@ async function dnsLookup(hostname:string,fetcher:FetchLike):Promise<Check<DnsDat
     const responses=await Promise.all(types.map(async type=>{
       const url=new URL("https://cloudflare-dns.com/dns-query");
       url.searchParams.set("name",hostname);url.searchParams.set("type",type);
-      const response=await fetchTimed(fetcher,url.toString(),{headers:{accept:"application/dns-json"},redirect:"error"});
+      const response=await fetchTimed(fetcher,url.toString(),{headers:{accept:"application/dns-json"},redirect:"follow"});
       if(!response.ok)throw new Error("DNS_HTTP_"+response.status);
       const payload=await response.json() as Record<string,unknown>;
       if(!Array.isArray(payload.Answer))return [];
@@ -83,7 +83,7 @@ async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Chec
   try {
     const url=new URL("https://crt.sh/");
     url.searchParams.set("q",hostname);url.searchParams.set("output","json");
-    const response=await fetchTimed(fetcher,url.toString(),{headers:{accept:"application/json"},redirect:"error"});
+    const response=await fetchTimed(fetcher,url.toString(),{headers:{accept:"application/json"},redirect:"follow"});
     if(!response.ok)throw new Error("CT_HTTP_"+response.status);
     const raw=await readLimited(response,512*1024);
     const rows=JSON.parse(raw) as unknown;
@@ -133,7 +133,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):
       headers:{
         accept:"application/json","x-timeout":"6","x-token-budget":"4000",
         "x-no-cache":"true","x-robots-txt":"true","dnt":"true"
-      },redirect:"error"
+      },redirect:"follow"
     });
     if(!response.ok)throw new Error("READER_HTTP_"+response.status);
     const payload=JSON.parse(await readLimited(response)) as unknown;
