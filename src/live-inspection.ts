@@ -98,7 +98,7 @@ function dnsNameMatches(hostname:string,pattern:string):boolean {
   if(name.startsWith("*.")){
     const suffix=name.slice(2);
     const prefix=host.slice(0,-suffix.length-1);
-    return host.endsWith("."+suffix)&&prefix.length>0&&!prefix.includes(".");
+    return getDomain(suffix,{allowPrivateDomains:true})===suffix && host.endsWith("."+suffix)&&prefix.length>0&&!prefix.includes(".");
   }
   return host===name;
 }
@@ -147,6 +147,7 @@ async function tlsLookup(hostname:string,fetcher:FetchLike):Promise<Check<TlsDat
     const problems=Array.isArray(validation.problems)?validation.problems.map(value=>String(value).slice(0,240)).slice(0,10):[];
     const publicKey=isRecord(cert.publicKey)?cert.publicKey:{};
     const sanEntries=isRecord(cert.extensions)&&Array.isArray(cert.extensions.subjectAltName)?cert.extensions.subjectAltName.filter(isRecord).filter(item=>String(item.type).toLowerCase()==="dns"):[];
+    const sanExtensionPresent=isRecord(cert.extensions)&&Array.isArray(cert.extensions.subjectAltName);
     const subjectAltNames=sanEntries.map(item=>String(item.value).toLowerCase().slice(0,253)).slice(0,100);
     return {status:"available",errorCode:null,data:{
       subject:isRecord(cert.subject)?String(cert.subject.commonName??"").slice(0,253)||null:null,
@@ -157,7 +158,7 @@ async function tlsLookup(hostname:string,fetcher:FetchLike):Promise<Check<TlsDat
       signatureAlgorithm:typeof cert.signatureAlgorithm==="string"?cert.signatureAlgorithm.slice(0,100):null,
       publicKeyAlgorithm:typeof publicKey.algorithm==="string"?publicKey.algorithm.slice(0,40):null,
       publicKeyBits:typeof publicKey.bits==="number"?publicKey.bits:null,
-      subjectAltNames,hostnameMatch:sanEntries.length?sanEntries.some(item=>dnsNameMatches(hostname,String(item.value))):null,
+      subjectAltNames,hostnameMatch:sanExtensionPresent?sanEntries.some(item=>dnsNameMatches(hostname,String(item.value))):null,
       chainLength:chain.length,chainComplete:typeof validation.chainComplete==="boolean"?validation.chainComplete:null,problems
     }};
   } catch(error) { return unavailable(error instanceof Error?error.message.slice(0,80):"TLS_LOOKUP_FAILED"); }
