@@ -113,7 +113,7 @@ async function tlsLookup(hostname:string,fetcher:FetchLike):Promise<Check<TlsDat
     });
     if(response.status===429)throw new Error("TLS_PROVIDER_RATE_LIMITED");
     if(!response.ok)throw new Error("TLS_PROVIDER_HTTP_"+response.status);
-    const payload=await response.json() as unknown;
+    const payload=JSON.parse(await readLimited(response,512*1024)) as unknown;
     if(!isRecord(payload)||payload.success!==true||!isRecord(payload.data)||!isRecord(payload.data.certificate))throw new Error("TLS_PROVIDER_INVALID_RESPONSE");
     const cert=payload.data.certificate;
     const validation=isRecord(payload.data.validation)?payload.data.validation:{};
@@ -157,6 +157,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):
   try {
     const target=new URL(inputUrl);
     target.username="";target.password="";target.search="";target.hash="";
+    if(target.port && !["80","443"].includes(target.port))return unavailable("NONSTANDARD_PORT_NOT_SENT_TO_READER");
     if(!safeHost(hostname))return unavailable("HOST_NOT_ELIGIBLE_FOR_REMOTE_READER");
     // The third-party reader fetches public pages. Query strings are stripped to avoid forwarding tokens or personal data.
     const endpoint="https://r.jina.ai/"+target.toString();
@@ -219,5 +220,5 @@ export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:
     "Redirect information is limited to the final URL reported by the content reader, not a complete packet-level redirect trace.",
     "Page content can change, be personalised, or be hidden behind JavaScript or access controls. A content check is not a complete malware sandbox."
   ];
-  return {checkedAt:new Date().toISOString(),privacy:"The content reader receives only the URL hostname and path. Query strings, fragments, embedded credentials and browser cookies are not forwarded. The TLS provider receives only the HTTPS hostname.",dns,certificateTransparency,tls,registration,websiteContent,findings,limitations};
+  return {checkedAt:new Date().toISOString(),privacy:"The content reader receives only the URL hostname and path. Query strings, fragments, embedded credentials and browser cookies are not forwarded. The TLS provider receives only the HTTPS hostname and has a shared rate limit of 100 requests per hour.",dns,certificateTransparency,tls,registration,websiteContent,findings,limitations};
 }
