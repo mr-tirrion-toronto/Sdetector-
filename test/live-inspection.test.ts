@@ -39,7 +39,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
         return Response.json({ error: "rate limited" }, { status: options.firecrawlStatus });
       }
       return Response.json({ success: true, data: {
-        html: options.pageHtml ?? "<form><input type=\\"password\\"></form> Verify your account immediately",
+        html: options.pageHtml ?? "<form><input type='password'></form> Verify your account immediately",
         metadata: { title: options.pageTitle ?? "Account verification", url: body.url, statusCode: 200, contentType: "text/html" }
       } });
     }
