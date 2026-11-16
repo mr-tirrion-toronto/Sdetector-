@@ -1,50 +1,64 @@
 # Scanner Scope
 
-## Implemented URL analysis
-- Strict absolute URL parsing; only HTTP/HTTPS.
+## URL analysis
+- Strict absolute URL parsing; only HTTP and HTTPS.
 - URL-pattern checks for HTTP, deceptive authority syntax, punycode, IP literals, deep subdomains, long hostnames, shorteners, sensitive-action terms and non-standard ports.
-- Explainable findings, recommendations and bounded 0–100 risk indicator.
-- Zero points and no-match responses are never presented as proof of safety.
+- Explainable findings, recommendations and a bounded 0–100 risk indicator.
+- A zero score or no-match response is never presented as proof of safety.
 
-## Live domain intelligence
-- Each scan can query the fixed PhishDestroy `/v1/investigate` API without an API key.
-- Only the normalized hostname is sent. URL paths, query strings, fragments, credentials and submitted URL parameters are not sent to this provider.
-- The response may include confirmed listing status, a separate pattern-based prediction, DNS-resolved IPs, RDAP registration age/registrar, campaign context and related domains when available.
-- Confirmed threat listings are distinguished from predictions and reviewed/whitelisted domains.
-- Provider errors, timeouts and rate limits are represented as unavailable intelligence, never as a clean verdict.
-- The external provider's risk score is shown as a risk indicator, not a probability.
+## Live domain and website inspection
+- **PhishDestroy:** keyless hostname investigation for confirmed listing status, separate pattern predictions, resolved IPs, registration context, campaigns and related domains when available. Only the hostname is sent.
+- **DNS:** public A, AAAA, MX, NS and TXT lookups through Cloudflare DNS-over-HTTPS.
+- **Live TLS:** Trustico SSL Tools retrieves the current HTTPS certificate and chain, including subject, issuer, validity dates, key details and chain-validation problems. Only the HTTPS hostname is sent. The provider documents a shared unauthenticated limit of 100 requests/hour; successful results are cached in Neon for 12 hours.
+- **Certificate Transparency:** crt.sh issuance history is shown separately from the live TLS result.
+- **Domain registration:** RDAP registration date, approximate age and registrar when available.
+- **Page content:** Jina Reader inspects public page text for credential requests, suspicious forms, urgent account-pressure wording, prize lures, crypto-wallet secrets and payment-data language. The hostname and path are sent; query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Non-standard ports are not sent to the reader.
+- **Redirects:** the reader's reported final URL is compared with the submitted hostname. This is not a complete redirect-by-redirect network trace.
+- Provider failures, timeouts and rate limits are shown as unavailable intelligence, never as a clean verdict.
 
 ## Scheduled threat-intelligence feeds
-- A separate Cloudflare Worker refreshes keyless Phishunt CC0 phishing-domain data from its public GitHub feed using conditional ETag requests.
-- URLhaus and PhishTank importers remain optional integrations; they require their own credentials and are not required for Phishunt.
-- Feed rows are normalized and SHA-256 hashed. Raw feed URLs are not stored in the database.
+- A separate Cloudflare Worker contains the keyless Phishunt CC0 feed importer and a five-minute Cron Trigger.
+- URLhaus and PhishTank importers remain optional integrations and require their own credentials. They are not required for Phishunt.
+- Feed rows are normalized and SHA-256 hashed. Raw feed URLs are not stored.
 - Scan requests are checked against locally stored indicators; submitted URLs are not sent to URLhaus or PhishTank.
-- Results expose provider freshness, match provenance, feed status, and clear no-match/unavailable states.
+- Results expose provider freshness, match provenance, feed status and clear no-match/unavailable states.
 - Indicators expire after 48 hours without a successful refresh; expired records are not used for matching.
+- **Activation state:** the Phishunt Worker code is in the repository, but the separate Worker still needs to be deployed and given its encrypted `DATABASE_URL` secret. A Pages secret does not automatically transfer to a separate Worker. Until that deployment and first successful sync, the dashboard correctly reports that no feed has synced.
+
+## Accounts and API access
+- Signup, login and logout endpoints with salted PBKDF2-SHA256 password hashes.
+- Secure HttpOnly, Secure, SameSite=Strict session cookies and hashed opaque session tokens.
+- Private per-user scan history. Guest scans remain supported and are not retroactively assigned to accounts.
+- API keys can be created, listed and revoked. The raw key is displayed only once; only its SHA-256 hash is stored.
+- Registration and login have IP-based rate limits. Up to 10 active API keys per account.
+- Email verification and self-service password reset are not yet configured because no email delivery provider is connected.
 
 ## Dashboard and reports
 - `/dashboard.html` exposes aggregate scan counts, risk distribution, seven-day activity and threat-feed health. It does not expose submitted URLs or report contents.
-- `/report.html` provides a print-ready A4 report with plain-language verdict, evidence, recommendations and limitations. Users can save it as PDF through the browser print dialog.
+- `/account.html` provides account access, API-key management and private scan history.
+- `/report.html` provides a print-ready A4 report with plain-language assessment, findings, live DNS/TLS/domain/content evidence, recommendations and limitations. Users can save it as PDF through the browser print dialog.
 - Report data is held in the browser session for the report view; no external PDF service is used.
 
-## Required production configuration
-- Apply `migrations/0004_phishunt_feed.sql` to the production Neon database before activating the updated feed Worker.
-- Deploy the feed Worker separately from Cloudflare Pages and configure its encrypted `DATABASE_URL` secret (the Pages secret does not automatically transfer to the Worker).
+## Production configuration
+- Production Neon migrations 0004 (Phishunt source), 0005 (accounts/API keys) and 0006 (TLS cache) have been applied.
+- The separate feed Worker still needs its encrypted `DATABASE_URL` secret and deployment. See `feed-worker/README.md`.
 - URLhaus and PhishTank secrets are optional and should only be added if their current terms and eligibility are confirmed.
-- Do not commit secrets or place them in browser code.
+- Never commit secrets or place them in browser code.
 
-## Provider usage and legal notes
-- Phishunt feed data is released under CC0 1.0 according to its public repository. Review the source and license before changing feeds.
-- PhishDestroy's public API documents no API key and no usage quota, with a flood guard that can return HTTP 429. Its Terms of Service still apply.
-- URLhaus community exports require an Auth-Key; commercial or for-profit use may require the enhanced commercial API.
-- PhishTank's current terms point users to Cisco's current EULA. Confirm applicable terms before using it in a public product.
+## Provider usage and safety notes
+- Phishunt feed data is released under CC0 1.0 according to its public repository.
+- PhishDestroy's public API is keyless and has a flood guard that can return HTTP 429. Its Terms of Service still apply.
+- Trustico SSL Tools documents no API authentication and a shared 100 requests/hour limit. TLS results are cached for 12 hours.
+- Jina Reader is a third-party content reader. Only public hostname/path data is forwarded, and its returned page text is treated as untrusted input.
+- The scanner does not execute submitted-site JavaScript or download files. It is not a full malware sandbox.
+- The 0–100 score is a rule-based/provider risk indicator, not a calibrated probability.
 
-## Not implemented yet
-- Direct TLS certificate inspection, full redirect-chain inspection and live website HTML/content analysis.
-- Form/credential-harvesting analysis and browser-isolated page inspection.
-- Authenticated multi-user accounts, private per-user investigation history, watchlists and evidence timeline.
-- Server-generated PDF rendering; current PDF export uses the browser's print-to-PDF flow.
-- Calibrated probability estimates; the 0–100 score is a rule-based/provider risk indicator, not a probability.
+## Remaining boundaries
+- Complete redirect-chain capture is not implemented; only the final URL reported by the reader is compared.
+- A full browser-isolated malware sandbox, JavaScript behavior analysis and downloaded-file detonation are not implemented.
+- The active TLS result is provided by Trustico, while Certificate Transparency history is a separate source. A provider outage or rate limit may leave TLS data unavailable.
+- Email verification and password-reset flows require an email provider.
+- Server-generated PDF rendering is not implemented; PDF export uses the browser's print-to-PDF flow.
 
 ## Safety boundary
-The scanner does not fetch submitted websites and does not execute third-party page code. It sends only the hostname to the fixed PhishDestroy domain-intelligence endpoint. Scheduled feeds are fetched only from fixed trusted provider endpoints. Any future active inspection of user-submitted websites requires connection-time destination validation, DNS rebinding defenses, private/reserved IP blocking, redirect re-validation, strict time/size limits and isolated parsing.
+The scanner does not directly fetch arbitrary submitted website URLs from the Cloudflare Worker. Public page content is retrieved by a fixed third-party reader endpoint, and TLS checks are performed by a fixed SSL-analysis provider. DNS, RDAP and Certificate Transparency requests go only to fixed provider endpoints. Future direct website fetching would require connection-time destination validation, DNS-rebinding defenses, private/reserved IP blocking, redirect re-validation, strict time/size limits and isolated parsing.
