@@ -102,7 +102,7 @@ async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Chec
     if(!Array.isArray(rows))throw new Error("CT_INVALID_RESPONSE");
     const certs=rows.filter(isRecord).map(row=>({
       issued:safeDate(row.not_before),expires:safeDate(row.not_after),
-      commonName:Array.isArray(row.dns_names)?String(row.dns_names.find(name=>String(name).replace(/^\\*\\./,"").toLowerCase()===hostname.toLowerCase())??row.dns_names[0]??"").slice(0,253):null,
+      commonName:Array.isArray(row.dns_names)?String(row.dns_names.find(name=>String(name).replace(/^\*\./,"").toLowerCase()===hostname.toLowerCase())??row.dns_names[0]??"").slice(0,253):null,
       revoked:typeof row.revoked==="boolean"?row.revoked:null
     })).filter(row=>row.issued).sort((a,b)=>Date.parse(b.issued!)-Date.parse(a.issued!));
     const latest=certs[0];
@@ -240,9 +240,9 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
       typeof metadata.sourceURL==="string"?metadata.sourceURL.slice(0,2048):null;
     const redirected=Boolean(fetchedUrl&&new URL(fetchedUrl).hostname.toLowerCase()!==hostname.toLowerCase());
     const indicators:string[]=[];
-    if(/<input[^>]+type\\s*=\\s*["']?password/i.test(text)||/password\\s*(field|input|form)/i.test(text))indicators.push("password_input");
-    if(/<form\\b/i.test(text)||/\\[form\\]|submit button|sign in form/i.test(text))indicators.push("form_detected");
-    if(/one[- ]time password|\\botp\\b|verification code|security code/i.test(text))indicators.push("credential_verification_language");
+    if(/<input[^>]+type\s*=\s*["']?password/i.test(text)||/password\s*(field|input|form)/i.test(text))indicators.push("password_input");
+    if(/<form\b/i.test(text)||/\[form\]|submit button|sign in form/i.test(text))indicators.push("form_detected");
+    if(/one[- ]time password|\botp\b|verification code|security code/i.test(text))indicators.push("credential_verification_language");
     if(/wallet connect|connect wallet|seed phrase|recovery phrase|private key/i.test(text))indicators.push("crypto_wallet_or_secret_request");
     if(/urgent.{0,50}(account|payment|verify|suspend)|account.{0,40}(suspended|locked|limited)|verify.{0,30}immediately/i.test(text))indicators.push("urgent_account_pressure");
     if(/gift card|claim.{0,30}(prize|reward)|you have won|free crypto|guaranteed profit/i.test(text))indicators.push("prize_or_financial_lure");
