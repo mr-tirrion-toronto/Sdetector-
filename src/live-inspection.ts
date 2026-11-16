@@ -49,6 +49,15 @@ async function readLimited(response: Response, maxBytes = CONTENT_LIMIT): Promis
   } finally { reader.releaseLock(); }
 }
 function unavailable<T>(errorCode:string): Check<T> { return {status:"unavailable",errorCode,data:null}; }
+function providerErrorCode(error:unknown,fallback:string):string {
+  if(error instanceof Error){
+    const message=error.message.slice(0,100);
+    if(/^(DNS|CT|RDAP|READER|TLS_PROVIDER)_HTTP_\\d+$/.test(message))return message;
+    if(["RESPONSE_TOO_LARGE","CT_INVALID_RESPONSE","NO_CERTIFICATE_RECORDS","TLS_PROVIDER_INVALID_RESPONSE","TLS_PROVIDER_RATE_LIMITED","NONSTANDARD_PORT_NOT_SENT_TO_READER"].includes(message))return message;
+    return error.name||fallback;
+  }
+  return fallback;
+}
 function safeDate(value:unknown):string|null {
   if (typeof value!=="string" || !value) return null;
   const parsed=Date.parse(value);
@@ -79,7 +88,7 @@ async function dnsLookup(hostname:string,fetcher:FetchLike):Promise<Check<DnsDat
     return {status:"available",errorCode:null,data:{
       records:responses.flat().slice(0,40),dnssec:null
     }};
-  } catch(error) { return unavailable(error instanceof Error?error.name:"DNS_LOOKUP_FAILED"); }
+  } catch(error) { return unavailable(providerErrorCode(error,"DNS_LOOKUP_FAILED")); }
 }
 async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Check<CertificateData>> {
   try {
@@ -102,7 +111,7 @@ async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Chec
       latestExpiresAt:latest.expires,issuer:latest.issuer,commonName:latest.commonName,
       expired:latest.expires?Date.parse(latest.expires)<Date.now():null
     }};
-  } catch(error) { return unavailable(error instanceof Error?error.name:"CT_LOOKUP_FAILED"); }
+  } catch(error) { return unavailable(providerErrorCode(error,"CT_LOOKUP_FAILED")); }
 }
 async function tlsLookup(hostname:string,fetcher:FetchLike):Promise<Check<TlsData>> {
   try {
@@ -151,7 +160,7 @@ async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<Regis
       createdAt:created,registrar:registrarName||null,
       ageDays:created?Math.max(0,Math.floor((Date.now()-Date.parse(created))/86400000)):null
     }};
-  } catch(error) { return unavailable(error instanceof Error?error.name:"RDAP_LOOKUP_FAILED"); }
+  } catch(error) { return unavailable(providerErrorCode(error,"RDAP_LOOKUP_FAILED")); }
 }
 async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):Promise<Check<WebsiteContentData>> {
   try {
@@ -184,7 +193,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):
     if(/gift card|claim.{0,30}(prize|reward)|you have won|free crypto|guaranteed profit/i.test(text))indicators.push("prize_or_financial_lure");
     if(/wire transfer|bank transfer|payment details|credit card number/i.test(text))indicators.push("payment_data_language");
     return {status:"available",errorCode:null,data:{title,fetchedUrl,redirected,contentBytes:new TextEncoder().encode(text).byteLength,indicators}};
-  } catch(error) { return unavailable(error instanceof Error?error.name:"CONTENT_LOOKUP_FAILED"); }
+  } catch(error) { return unavailable(providerErrorCode(error,"CONTENT_LOOKUP_FAILED")); }
 }
 
 export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:FetchLike=fetch,cachedTls?:TlsData|null):Promise<LiveInspection> {
