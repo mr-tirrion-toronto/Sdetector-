@@ -5,6 +5,8 @@ export interface BusinessClaimAssessment {
   signals: string[];
   findings: Finding[];
   payoutVerification: "not_verified_from_public_page";
+  operatorVerification: "not_independently_verified";
+  operatorDisclosure: { legalEntityDetected: boolean; contactDetailsDetected: boolean; termsLinkDetected: boolean; privacyLinkDetected: boolean };
   note: string;
 }
 
@@ -12,11 +14,16 @@ export interface BusinessClaimAssessment {
  * Detects commercial earning and payout claims in public page text.
  * These are explainable rules, not an AI verdict and not proof of fraud.
  */
-export function analyzeBusinessClaims(text: string): BusinessClaimAssessment {
+export function analyzeBusinessClaims(text: string, html = ""): BusinessClaimAssessment {
   const source = text.slice(0, 32000);
   const normalized = source.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
   const signals: string[] = [];
   const findings: Finding[] = [];
+  const legalEntityDetected = /\b(?:limited|ltd\.?|llc|inc\.?|plc|gmbh|corp(?:oration)?|company registration (?:number|no\.?))\b/i.test(normalized);
+  const contactDetailsDetected = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(normalized) || /(?:\+?\d[\d ()-]{7,}\d)/.test(normalized) || /(?:mailto:|tel:)/i.test(html);
+  const termsLinkDetected = /<a\b[^>]*(?:href=["'][^"']*(?:terms|conditions|legal)[^"']*["']|>[^<]*(?:terms of service|terms and conditions|terms)[^<]*<)/i.test(html);
+  const privacyLinkDetected = /<a\b[^>]*(?:href=["'][^"']*privacy[^"']*["']|>[^<]*privacy policy[^<]*<)/i.test(html);
+
   const add = (code: string, title: string, severity: Finding["severity"], points: number,
     evidence: string, recommendation: string) => {
     findings.push({ code, title, severity, points, evidence, recommendation });
@@ -78,11 +85,20 @@ export function analyzeBusinessClaims(text: string): BusinessClaimAssessment {
       "Look for independently verifiable payment evidence, complaints and regulator or company records. Screenshots and testimonials can be fabricated or selectively presented.");
   }
 
+  if (!legalEntityDetected || !contactDetailsDetected || !termsLinkDetected || !privacyLinkDetected) {
+    signals.push("operator_identity_disclosure_incomplete");
+    add("BUSINESS_OPERATOR_DETAILS_INCOMPLETE", "Public operator details are incomplete or not detectable", "info", 0,
+      "The captured page does not expose all expected operator details (legal entity, contact channel, Terms of Service and Privacy Policy). This may reflect an incomplete page capture and is not proof of fraud. The operator has not been independently verified against an official company registry.",
+      "Find the legal entity name and registration number, verify them in the relevant official company registry, and confirm the contact details and legal policies through independent sources.");
+  }
+
   return {
     model: chatToEarn ? "paid_chat_or_task_claim" : signals.length ? "online_earning_claim" : "not_detected",
     signals,
     findings,
     payoutVerification: "not_verified_from_public_page",
+    operatorVerification: "not_independently_verified",
+    operatorDisclosure: { legalEntityDetected, contactDetailsDetected, termsLinkDetected, privacyLinkDetected },
     note: "Public page content cannot prove that a platform pays users. Verify payouts independently and never pay money to unlock wages or withdrawals."
   };
 }
