@@ -67,7 +67,7 @@ Indicators are normalized and hashed before storage. Raw feed URLs are not store
 ## Security boundaries and known limitations
 - The scanner does not execute submitted-site JavaScript or download files. It is not a full malware sandbox.
 - TLS details are obtained from the Trustico SSL Tools provider; certificate-transparency history is a separate data source.
-- The content reader is a third-party service. Only public hostname/path data is sent to it, and returned page text is treated as untrusted input.
+- Firecrawl is a third-party content extraction service. Only public hostname/path data is sent to it, and returned HTML is treated as untrusted input.
 - Redirect reporting uses the reader's reported final URL, not a complete redirect-by-redirect trace.
 - Email verification and password-reset flows are not configured because no email delivery provider is connected.
 - Feed auto-refresh is not active until the separate Worker has been deployed with its database secret.
