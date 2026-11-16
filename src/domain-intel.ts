@@ -78,7 +78,7 @@ export async function investigateDomain(
     const response = await fetcher(endpoint.toString(), {
       method: "GET",
       headers: { accept: "application/json", "user-agent": "ScamDetector/1.0" },
-      redirect: "error",
+      redirect: "follow",
       signal: controller.signal
     });
     if (response.status === 429) return { ...unavailable("HTTP_429"), status: "rate_limited" };
