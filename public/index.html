@@ -49,17 +49,20 @@
       <article class="feature"><div class="feature-icon">⌘</div><h3>URL structure analysis</h3><p>Inspect hostname patterns, unusual subdomains, deceptive URL syntax and suspicious path terms.</p></article>
       <article class="feature"><div class="feature-icon">◈</div><h3>Risk scoring</h3><p>See a 0–100 indicator with a risk category and the individual signals contributing to it.</p></article>
       <article class="feature"><div class="feature-icon">◎</div><h3>Actionable guidance</h3><p>Each detected signal includes evidence and a recommendation to help you decide what to do next.</p></article>
+      <article class="feature"><div class="feature-icon">⌁</div><h3>Live domain intelligence</h3><p>Check DNS, domain registration age, certificate issuance history and provider-reported threat context.</p></article>
+      <article class="feature"><div class="feature-icon">▤</div><h3>Live page inspection</h3><p>Inspect public page text for credential requests, suspicious forms, urgency and common scam lures.</p></article>
+      <article class="feature"><div class="feature-icon">⌘</div><h3>Personal investigations</h3><p>Create an account to keep private scan history and manage revocable API keys for integrations.</p></article>
     </div>
   </section>
   <section class="section" id="how-it-works">
     <div class="section-head"><div class="eyebrow">Simple by design</div><h2>Three steps. More informed decisions.</h2></div>
     <div class="workflow">
       <article><div class="step-num">01 / SUBMIT</div><h3>Paste the website URL</h3><p>Enter the link you want to examine without visiting it first.</p></article>
-      <article><div class="step-num">02 / ANALYSE</div><h3>Review the signals</h3><p>The scanner checks URL patterns and calculates an explainable preliminary score.</p></article>
-      <article><div class="step-num">03 / DECIDE</div><h3>Use the evidence</h3><p>Read the findings and verify important links through trusted channels.</p></article>
+      <article><div class="step-num">02 / ANALYSE</div><h3>Review the signals</h3><p>The scanner checks URL patterns, DNS, certificate history, registration data, live page content and configured threat intelligence.</p></article>
+      <article><div class="step-num">03 / DECIDE</div><h3>Use the evidence</h3><p>Review the evidence, save your report and verify important links through trusted channels.</p></article>
     </div>
   </section>
-  <aside class="disclaimer"><strong>Important security note</strong><br>Scam Detector combines URL-pattern analysis with local threat-intelligence matching when feeds are configured and current. It does not yet inspect live website content, DNS records, TLS certificates, domain registration age or redirect chains. A zero score or missing feed match is not proof that a website is safe. Never submit passwords, payment details or private information to a site you do not trust.</aside>
+  <aside class="disclaimer"><strong>Important security note</strong><br>Scam Detector combines URL-pattern analysis, live DNS lookups, Certificate Transparency history, RDAP registration data, public website-content inspection, PhishDestroy domain intelligence and local threat-feed matching when feeds are current. The content reader receives only the hostname and path; URL query strings, fragments and browser credentials are removed. Certificate Transparency is not a live TLS handshake, and redirect reporting is limited to the final URL reported by the reader. This is not a full malware sandbox and it does not execute downloaded files. A zero score or missing feed match is not proof that a website is safe. Never submit passwords, payment details, one-time codes or private information to a site you do not trust.</aside>
   <footer><span class="footer-brand">SCAM DETECTOR</span><span>Independent website risk awareness · Cloudflare Pages</span><span>© <span id="year"></span> Scam Detector · Created by Mr Tirrion</span></footer>
 </div>
 <script>
@@ -88,7 +91,7 @@ form.addEventListener('submit',async event=>{
   button.disabled=true;
   button.textContent='Analysing…';
   statusEl.className='status';
-  statusEl.textContent='Checking URL patterns. Please wait…';
+  statusEl.textContent='Checking URL patterns, DNS, certificate history, registration data, page content and threat intelligence. This may take a few seconds…';
   resultEl.style.display='none';
   try{
     const response=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({url:input.value.trim()})});
