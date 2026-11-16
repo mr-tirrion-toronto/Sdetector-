@@ -1,4 +1,5 @@
 import type { Finding } from "./analyzer";
+import { analyzeBusinessClaims } from "./business-claims";
 import { getDomain } from "tldts";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -7,7 +8,7 @@ interface DnsData { records: Array<{type:string;value:string;ttl:number|null}>; 
 interface CertificateData { source:string; queriedDomain:string; found:boolean; matchingNames:string[]; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }
 export interface TlsData { subject:string|null; issuer:string|null; notBefore:string|null; notAfter:string|null; expired:boolean|null; daysUntilExpiry:number|null; signatureAlgorithm:string|null; publicKeyAlgorithm:string|null; publicKeyBits:number|null; subjectAltNames:string[]; hostnameMatch:boolean|null; chainLength:number; chainComplete:boolean|null; problems:string[] }
 interface RegistrationData { queriedDomain:string; createdAt:string|null; registrar:string|null; ageDays:number|null }
-interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[]; httpStatus:number|null; contentType:string|null; cachedAt:string|null; source:string }
+interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[]; businessSignals:string[]; businessFindings:Finding[]; payoutVerification:"not_verified_from_public_page"; httpStatus:number|null; contentType:string|null; cachedAt:string|null; source:string }
 export interface LiveInspection {
   checkedAt: string;
   registrableDomain: string;
@@ -267,8 +268,10 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
     if(/urgent.{0,50}(account|payment|verify|suspend)|account.{0,40}(suspended|locked|limited)|verify.{0,30}immediately/i.test(text))indicators.push("urgent_account_pressure");
     if(/gift card|claim.{0,30}(prize|reward)|you have won|free crypto|guaranteed profit/i.test(text))indicators.push("prize_or_financial_lure");
     if(/wire transfer|bank transfer|payment details|credit card number/i.test(text))indicators.push("payment_data_language");
+    const businessAssessment=analyzeBusinessClaims(text);
     return {status:"available",errorCode:null,data:{
       title,fetchedUrl,redirected,contentBytes:new TextEncoder().encode(text).byteLength,indicators,
+      businessSignals:businessAssessment.signals,businessFindings:businessAssessment.findings,payoutVerification:businessAssessment.payoutVerification,
       httpStatus:typeof metadata.statusCode==="number"?metadata.statusCode:null,
       contentType:typeof metadata.contentType==="string"?metadata.contentType.slice(0,100):null,
       cachedAt:typeof metadata.cachedAt==="string"?metadata.cachedAt.slice(0,40):null,
@@ -299,6 +302,7 @@ export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:
   if(registration.status==="available"&&registration.data?.ageDays!==null&&registration.data?.ageDays!==undefined&&registration.data.ageDays<30)add("DOMAIN_RECENTLY_REGISTERED","Domain was registered recently","medium",15,"RDAP registration data indicates an age of approximately "+registration.data.ageDays+" days.","Treat unexpected links on a recently registered domain with extra caution and verify the sender independently.");
   const content=websiteContent.data;
   if(websiteContent.status==="available"&&content){
+    findings.push(...content.businessFindings);
     if(content.redirected)add("CROSS_DOMAIN_REDIRECT","Website reader followed a redirect to another hostname","medium",15,"The content reader reports a final hostname different from the submitted hostname: "+content.fetchedUrl+".","Check whether the redirect destination belongs to the organisation you intended to visit.");
     if(content.indicators.includes("password_input"))add("LIVE_PASSWORD_INPUT","Live page contains a password input","info",0,"The remote page content includes a password input. Legitimate sites also use password fields, so this is context rather than proof of phishing.","Only enter credentials after confirming the exact domain independently.");
     if(content.indicators.includes("form_detected"))add("LIVE_FORM_DETECTED","Live page contains a form","info",0,"The remote page content contains a form or submit control. Forms are common on legitimate sites too.","Check the domain and the purpose of the form before submitting personal information.");

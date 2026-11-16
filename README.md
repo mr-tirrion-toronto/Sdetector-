@@ -21,7 +21,7 @@
 - Firecrawl receives only the public hostname and path. Query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Private/reserved DNS targets and non-standard ports are not sent to the provider.
 - Redirect reporting compares the final URL reported by Firecrawl with the submitted hostname. It is not a complete network-level redirect trace.
 
-### Accounts and API keys
+#### Business legitimacy and earnings-claim analysis\n- Detects public-page claims about paid chatting, advertised daily earnings, referral rewards, payout totals/testimonials, and possible upfront, recharge-to-earn or pay-to-withdraw language.\n- Separates neutral marketing claims from high-risk advance-payment signals; a paid-chat claim alone is not treated as fraud.\n- Explicitly marks payouts as not independently verified from public page content. This scanner does not create accounts, deposit funds or simulate withdrawals.\n- These explainable rules are not an AI verdict. Absence of a signal is not proof of legitimacy; operator identity, contracts, real customers and actual payouts require independent verification.\n\n## Accounts and API keys
 - Signup, login and logout.
 - Salted PBKDF2-SHA256 password hashes and secure HttpOnly session cookies.
 - Private per-user scan history.
@@ -70,10 +70,10 @@ Indicators are normalized and hashed before storage. Raw feed URLs are not store
 - Firecrawl is a third-party content extraction service. Only public hostname/path data is sent to it, and returned HTML is treated as untrusted input.
 - Redirect reporting uses the reader's reported final URL, not a complete redirect-by-redirect trace.
 - Email verification and password-reset flows are not configured because no email delivery provider is connected.
-- Feed auto-refresh is not active until the separate Worker has been deployed with its database secret.
+- Phishunt feed auto-refresh runs through a Cloudflare Cron Worker every five minutes; last production verification showed 695 indicators imported and feed status `ok` (16 November 2026).
 - A 0–100 score is a rule-based/provider risk indicator, not a calibrated probability.
 
-See [Scanner Scope](docs/SCANNER_SCOPE.md), [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/ROADMAP.md) and [Security Policy](SECURITY.md).
+See [Scanner Scope](docs/SCANNER_SCOPE.md), [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/ROADMAP.md), [Security Policy](SECURITY.md), [Terms of Service](public/terms.html) and [Privacy Policy](public/privacy.html).
 
 ## Responsible use
 Use Scam Detector for lawful defensive research, fraud prevention and user protection. Only submit URLs you are authorized to investigate. Do not use the service to probe internal systems, bypass access controls, disrupt websites or collect personal information.
