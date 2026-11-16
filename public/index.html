@@ -24,14 +24,14 @@
 <div class="shell">
   <header>
     <a class="brand" href="/" aria-label="Scam Detector home"><span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8 20 6v5.2c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3.2Z"/><path d="m8.7 12 2.1 2.1 4.6-4.7"/></svg></span><span>SCAM DETECTOR<small>WEBSITE RISK INTELLIGENCE</small></span></a>
-    <nav class="nav"><a href="#scanner">URL Scanner</a><a href="/dashboard.html">Dashboard</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
+    <nav class="nav"><a href="#scanner">URL Scanner</a><a href="/dashboard.html">Dashboard</a><a href="/account.html">Account & API</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
     <div class="status-pill" id="service-status"><i class="dot"></i> CHECKING SERVICE</div>
   </header>
   <section class="hero">
     <div class="eyebrow">Think before you click</div>
     <h1>See the warning signs.<br><span>Stay one step ahead.</span></h1>
     <p class="hero-copy">Check suspicious website links, understand the risk signals and make a more informed decision before visiting an unfamiliar destination.</p>
-    <div class="trustline"><span><i class="check">✓</i> Explainable findings</span><span><i class="check">✓</i> No account required</span><span><i class="check">✓</i> Privacy-conscious checks</span></div>
+    <div class="trustline"><span><i class="check">✓</i> Explainable findings</span><span><i class="check">✓</i> Optional personal account</span><span><i class="check">✓</i> Privacy-conscious checks</span></div>
   </section>
   <section class="scanner" id="scanner" aria-labelledby="scanner-title">
     <div class="scan-head"><div><strong id="scanner-title">Website URL scanner</strong><br><small>Paste a link to begin a security assessment</small></div><span class="scan-icon">⌕</span></div>
@@ -49,17 +49,20 @@
       <article class="feature"><div class="feature-icon">⌘</div><h3>URL structure analysis</h3><p>Inspect hostname patterns, unusual subdomains, deceptive URL syntax and suspicious path terms.</p></article>
       <article class="feature"><div class="feature-icon">◈</div><h3>Risk scoring</h3><p>See a 0–100 indicator with a risk category and the individual signals contributing to it.</p></article>
       <article class="feature"><div class="feature-icon">◎</div><h3>Actionable guidance</h3><p>Each detected signal includes evidence and a recommendation to help you decide what to do next.</p></article>
+      <article class="feature"><div class="feature-icon">⌁</div><h3>Live domain intelligence</h3><p>Check DNS, domain registration age, certificate issuance history and provider-reported threat context.</p></article>
+      <article class="feature"><div class="feature-icon">▤</div><h3>Live page inspection</h3><p>Inspect public page text for credential requests, suspicious forms, urgency and common scam lures.</p></article>
+      <article class="feature"><div class="feature-icon">⌘</div><h3>Personal investigations</h3><p>Create an account to keep private scan history and manage revocable API keys for integrations.</p></article>
     </div>
   </section>
   <section class="section" id="how-it-works">
     <div class="section-head"><div class="eyebrow">Simple by design</div><h2>Three steps. More informed decisions.</h2></div>
     <div class="workflow">
       <article><div class="step-num">01 / SUBMIT</div><h3>Paste the website URL</h3><p>Enter the link you want to examine without visiting it first.</p></article>
-      <article><div class="step-num">02 / ANALYSE</div><h3>Review the signals</h3><p>The scanner checks URL patterns and calculates an explainable preliminary score.</p></article>
-      <article><div class="step-num">03 / DECIDE</div><h3>Use the evidence</h3><p>Read the findings and verify important links through trusted channels.</p></article>
+      <article><div class="step-num">02 / ANALYSE</div><h3>Review the signals</h3><p>The scanner checks URL patterns, DNS, certificate history, registration data, live page content and configured threat intelligence.</p></article>
+      <article><div class="step-num">03 / DECIDE</div><h3>Use the evidence</h3><p>Review the evidence, save your report and verify important links through trusted channels.</p></article>
     </div>
   </section>
-  <aside class="disclaimer"><strong>Important security note</strong><br>Scam Detector combines URL-pattern analysis with local threat-intelligence matching when feeds are configured and current. It does not yet inspect live website content, DNS records, TLS certificates, domain registration age or redirect chains. A zero score or missing feed match is not proof that a website is safe. Never submit passwords, payment details or private information to a site you do not trust.</aside>
+  <aside class="disclaimer"><strong>Important security note</strong><br>Scam Detector combines URL-pattern analysis, live DNS lookups, Certificate Transparency history, RDAP registration data, public website-content inspection, PhishDestroy domain intelligence and local threat-feed matching when feeds are current. The content reader receives only the hostname and path; URL query strings, fragments and browser credentials are removed. Certificate Transparency is not a live TLS handshake, and redirect reporting is limited to the final URL reported by the reader. This is not a full malware sandbox and it does not execute downloaded files. A zero score or missing feed match is not proof that a website is safe. Never submit passwords, payment details, one-time codes or private information to a site you do not trust.</aside>
   <footer><span class="footer-brand">SCAM DETECTOR</span><span>Independent website risk awareness · Cloudflare Pages</span><span>© <span id="year"></span> Scam Detector · Created by Mr Tirrion</span></footer>
 </div>
 <script>
@@ -88,7 +91,7 @@ form.addEventListener('submit',async event=>{
   button.disabled=true;
   button.textContent='Analysing…';
   statusEl.className='status';
-  statusEl.textContent='Checking URL patterns. Please wait…';
+  statusEl.textContent='Checking URL patterns, DNS, certificate history, registration data, page content and threat intelligence. This may take a few seconds…';
   resultEl.style.display='none';
   try{
     const response=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({url:input.value.trim()})});
@@ -133,6 +136,20 @@ function renderResult(data){
     (domainIntel.assessment?'<div class="feed-row"><span>Pattern assessment</span><b>'+escapeHtml(domainIntel.assessment.risk)+' · '+Number(domainIntel.assessment.score||0)+'/'+Number(domainIntel.assessment.maxScore||100)+'</b></div>':'')+
     (domainDetails.length?domainDetails.map(item=>'<div class="feed-row"><span>'+escapeHtml(item)+'</span></div>').join(''):'')+
     '<p class="feed-note">'+(domainIntel.status==='available'?'Only the hostname is sent to PhishDestroy; the full URL path and query are not shared. A non-listed result is not proof of safety.':'Live domain intelligence could not be confirmed. This is not a clean verdict.')+'</p></div>';
+  const live=data.liveInspection||{};
+  const dns=live.dns||{},dnsRecords=dns.data?.records||[];
+  const cert=live.certificateTransparency||{},certData=cert.data||{};
+  const reg=live.registration||{},regData=reg.data||{};
+  const page=live.websiteContent||{},pageData=page.data||{};
+  const livePanel='<div class="feed-panel"><strong>Live website inspection</strong>'+
+    '<div class="feed-row"><span>DNS records</span><b>'+escapeHtml(dns.status==='available'?dnsRecords.length+' records':'Unavailable')+'</b></div>'+
+    (dnsRecords.length?'<div class="feed-row"><span>'+escapeHtml(dnsRecords.slice(0,3).map(r=>r.type+': '+r.value).join(' · '))+'</span></div>':'')+
+    '<div class="feed-row"><span>Certificate transparency</span><b>'+escapeHtml(cert.status==='available'?(certData.expired?'Latest record expired':'Certificate record found'):'Unavailable')+'</b></div>'+
+    '<div class="feed-row"><span>Domain registration</span><b>'+escapeHtml(reg.status==='available'?(regData.ageDays===null?'Date unknown':numberText(regData.ageDays)+' days old'):'Unavailable')+'</b></div>'+
+    '<div class="feed-row"><span>Live page content</span><b>'+escapeHtml(page.status==='available'?'Inspected':'Unavailable')+'</b></div>'+
+    (pageData.title?'<div class="feed-row"><span>Page title</span><b>'+escapeHtml(pageData.title)+'</b></div>':'')+
+    (pageData.indicators?.length?'<div class="feed-row"><span>Content signals</span><b>'+escapeHtml(pageData.indicators.join(', '))+'</b></div>':'')+
+    '<p class="feed-note">'+escapeHtml(live.privacy||'External content inspection may be incomplete. A missing signal is not proof of safety.')+'</p></div>';
   const badgeClass=knownThreat?'critical':(assessment==='no_known_threat_match'?'insufficient':level);
   const labels={
     known_threat_detected:'KNOWN THREAT MATCH',
@@ -162,6 +179,7 @@ function renderResult(data){
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
     domainPanel+
+    livePanel+
     '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
     (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No configured warning patterns or known-feed matches were found. This is not a safety guarantee.</div>')+
     '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
