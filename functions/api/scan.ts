@@ -10,6 +10,17 @@ interface Env {
 const BODY_LIMIT = 4096;
 const RATE_WINDOW_SECONDS = 600;
 const RATE_LIMIT = 20;
+const SIGNAL_LABELS: Record<string, string> = {
+  brand_in_name: "A known brand name appears in the domain",
+  brand_with_scam_terms: "A brand name is combined with scam-related wording",
+  scam_terms: "The domain contains scam-related wording",
+  lookalike_of_known_phishing: "The domain resembles a known phishing site",
+  shared_name_pattern: "The domain shares a naming pattern with known threats",
+  phishing_infrastructure_ip: "The hosting IP is associated with phishing infrastructure",
+  high_risk_tld: "The domain uses a higher-risk top-level domain",
+  brand_homoglyph: "The domain may imitate a brand using lookalike characters",
+  newly_registered: "The domain appears newly registered"
+};
 
 function json(data: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return Response.json(data, {
@@ -199,8 +210,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       title: "Domain has suspicious threat-pattern signals",
       severity: assessment.risk === "high" ? "high" : assessment.risk === "elevated" ? "medium" : "low",
       points: Math.min(35, Math.max(5, Math.round(assessment.score * 0.35))),
-      evidence: "PhishDestroy risk-pattern score: " + assessment.score + "/100. Signals: " +
-        (assessment.signals.join(", ") || "pattern analysis") + ". This is a prediction, not a confirmed blocklist match.",
+      evidence: "PhishDestroy risk-pattern score: " + assessment.score + "/" + assessment.maxScore + ". Signals: " +
+        (assessment.signals.map(signal => SIGNAL_LABELS[signal] ?? signal.replace(/_/g, " ")).join("; ") || "pattern analysis") + ". This is a prediction, not a confirmed blocklist match.",
       recommendation: "Verify the exact domain independently. Do not rely on the sender's message or enter credentials until the destination is confirmed."
     });
   }
@@ -251,7 +262,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     score,
     riskLevel,
     assessmentStatus,
-    confidence: confirmedThreat ? "high" : domainIntelligence.assessment ? "moderate" : "limited",
+    confidence: confirmedThreat ? "high" : domainIntelligence.assessment && domainIntelligence.assessment.score >= 20 ? "moderate" : "limited",
     limitations,
     threatIntelligence,
     domainIntelligence
