@@ -1,32 +1,39 @@
 # Scanner Scope
 
-## Implemented in version 0.2 (after the confidence and API-hardening release is merged and deployed)
+## Implemented URL analysis
+- Strict absolute URL parsing; only HTTP/HTTPS.
+- URL-pattern checks for HTTP, deceptive authority syntax, punycode, IP literals, deep subdomains, long hostnames, shorteners, sensitive-action terms and non-standard ports.
+- Explainable findings, recommendations and bounded 0–100 heuristic score.
+- Zero points are never presented as proof of safety.
 
-- Strict URL parsing and HTTP/HTTPS scheme allow-list.
-- URL-pattern heuristics for HTTP, deceptive authority/userinfo syntax, punycode labels, IP-literal hosts, deep subdomains, long hostnames, known shorteners, sensitive-action terms and non-standard ports.
-- Explainable findings with evidence, severity, points and recommendations.
-- A bounded 0–100 URL-signal score.
-- Explicit assessment state: no configured signals means **insufficient evidence**, not verified safe.
-- Limited confidence label and visible capability limitations.
-- Streaming request-body byte limit.
-- Per-client rate limit using a short-lived SHA-256 bucket key from the Cloudflare client IP.
-- Atomic single-statement persistence of a scan and its findings.
-- Redaction of URL userinfo, fragments and common sensitive query values before database storage.
-- Live API/database health status in the interface.
-- PDF via browser print and copyable scan summary.
+## Threat-intelligence integration (code prepared; activation requires provider credentials)
+- A separate Cloudflare Worker is configured to refresh URLhaus every five minutes and check PhishTank ETag every five minutes; PhishTank data itself is published hourly.
+- URLhaus recent.csv export is ingested from its authenticated v2 export endpoint.
+- PhishTank verified-online CSV gzip feed is downloaded only when its ETag changes.
+- Feed rows are canonicalized and SHA-256 hashed. Raw feed URLs are not stored in the database.
+- Scan requests are checked against locally stored hashes; user-submitted URLs are not sent to either provider.
+- Results expose provider freshness, match provenance, feed status, and clear no-match/unavailable states.
+- A verified URLhaus or PhishTank match produces a critical known-threat finding.
+- Indicator records expire after 48 hours without a successful refresh; expired records are not used for matching.
+
+## Required production configuration
+The scheduled feed Worker must be deployed separately from Cloudflare Pages and configured with these encrypted Worker secrets:
+- DATABASE_URL — the existing Neon connection string (also add it to this Worker, not just Pages).
+- URLHAUS_AUTH_KEY — an abuse.ch authentication key.
+- PHISHTANK_APP_KEY — a registered PhishTank application key.
+
+Apply migrations/0003_threat_intelligence.sql to the production Neon database before deploying the new Pages API. Deploy the feed Worker using npm run deploy:feed-worker after its secrets are configured. Do not commit keys or put them in browser code.
+
+## Provider usage and legal notes
+- URLhaus community exports require an Auth-Key. Its official API documentation says commercial or for-profit use may require the enhanced commercial API. Confirm that the intended Scam Detector business model is within the community fair-use terms or obtain the appropriate commercial entitlement.
+- PhishTank's current terms page points users to Cisco's current EULA; the API documentation requires a registered application key for higher request limits. Confirm the applicable current terms before public product use.
+- Do not scrape or redistribute provider data beyond the permissions granted to the account.
 
 ## Not implemented yet
-
-The scanner still does not fetch submitted websites, resolve DNS, inspect TLS certificates, determine domain age, follow redirects, query third-party reputation providers, parse page content, identify brand impersonation, monitor changes, or generate a server-authored PDF report. Local browser history is not a server-side investigation history dashboard.
-
-## Threat intelligence status
-
-No external threat feed is currently integrated. OpenPhish Community Feed terms currently restrict use to personal/academic research and prohibit product development or commercial use without written permission. URLhaus community bulk exports require an Auth-Key and commercial use may require the enhanced paid API. PhishTank API/data documentation and terms need current Cisco permission review and a registered application key before production integration. Do not silently use or redistribute a feed without verifying its current terms.
-
-The weekly security review task is for advisory and provider-change monitoring; it does not itself update the scanner's production threat database.
+- DNS A/AAAA, RDAP registration age, TLS certificate inspection and redirect-chain inspection.
+- Live website HTML/content analysis, form/credential-harvesting analysis and brand impersonation.
+- Authenticated multi-user investigation history, watchlists, evidence timeline and server-generated PDF reports.
+- Calibrated probability estimates; the 0–100 score is a rule-based risk indicator, not a probability.
 
 ## Safety boundary
-
-The scanner does not fetch submitted URLs and does not execute third-party page code. Any future active inspection must have destination validation at connection time, DNS rebinding protection, private/reserved address blocking, redirect re-validation, strict time/size limits, and isolated parsing. DNS checks through a fixed trusted resolver endpoint may be added separately; they must not be described as live page inspection.
-
-A zero score means only that the configured URL heuristics produced no points. It is not a safety guarantee, probability, or reputation verdict.
+The scanner does not fetch submitted websites and does not execute third-party page code. Threat feeds are fetched only from fixed, trusted provider endpoints by a scheduled Worker. Any future active inspection of user-submitted websites requires connection-time destination validation, DNS rebinding defenses, private/reserved IP blocking, redirect re-validation, strict time/size limits and isolated parsing.
