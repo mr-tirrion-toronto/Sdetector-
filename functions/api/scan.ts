@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { analyzeUrl } from "../../src/analyzer";
+import { lookupThreatIntelligence } from "../../src/threat-intel";
 
 interface Env {
   DATABASE_URL?: string;
@@ -151,17 +152,68 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ error: "Scanner is temporarily unavailable. Please try again shortly." }, 503);
   }
 
+  let threatIntelligence = {
+    status: "unavailable" as "available" | "partial" | "unavailable" | "not_configured",
+    matched: false,
+    feeds: [] as Array<{ source: string; status: string; lastUpdatedAt: string | null; itemCount: number }>,
+    findings: [] as typeof result.findings
+  };
+
+  try {
+    threatIntelligence = await lookupThreatIntelligence(sql, result.normalizedUrl);
+  } catch (error) {
+    console.error("THREAT_INTELLIGENCE_LOOKUP_FAILED", error instanceof Error ? error.name : "UnknownError");
+  }
+
+  const findings = [...result.findings, ...threatIntelligence.findings];
+  const score = threatIntelligence.matched ? 100 : result.score;
+  const riskLevel = threatIntelligence.matched ? "critical" : result.riskLevel;
+  let assessmentStatus:
+    | "known_threat_detected"
+    | "no_known_threat_match"
+    | "threat_intel_partial"
+    | "threat_intel_unavailable"
+    | "insufficient_evidence"
+    | "preliminary_signals_detected";
+
+  if (threatIntelligence.matched) assessmentStatus = "known_threat_detected";
+  else if (threatIntelligence.status === "available") assessmentStatus = "no_known_threat_match";
+  else if (threatIntelligence.status === "partial") assessmentStatus = "threat_intel_partial";
+  else if (threatIntelligence.status === "unavailable") assessmentStatus = "threat_intel_unavailable";
+  else assessmentStatus = findings.length ? "preliminary_signals_detected" : "insufficient_evidence";
+
+  const limitations = [...result.limitations];
+  if (threatIntelligence.status === "not_configured") {
+    limitations.push("Threat-intelligence feeds are not configured yet.");
+  } else if (threatIntelligence.status === "partial" || threatIntelligence.status === "unavailable") {
+    limitations.push("One or more threat-intelligence feeds are unavailable or stale. A missing match is not conclusive.");
+  } else if (threatIntelligence.status === "available" && !threatIntelligence.matched) {
+    limitations.push("No exact match was found in the currently configured feeds. New or unreported threats may not be listed.");
+  }
+
+  const scanResult = {
+    ...result,
+    scanId,
+    findings,
+    score,
+    riskLevel,
+    assessmentStatus,
+    confidence: threatIntelligence.matched ? "high" : "limited",
+    limitations,
+    threatIntelligence
+  };
+
   let saved = false;
   try {
     const storedUrl = redactUrlForStorage(result.inputUrl);
-    const findingsJson = JSON.stringify(result.findings);
+    const findingsJson = JSON.stringify(findings);
     await sql`
       WITH inserted_scan AS (
         INSERT INTO scans
           (id, input_url, normalized_url, hostname, risk_score, risk_level, created_at)
         VALUES
           (${scanId}, ${storedUrl}, ${storedUrl}, ${result.hostname},
-           ${result.score}, ${result.riskLevel}, NOW())
+           ${score}, ${riskLevel}, NOW())
         RETURNING id
       ),
       inserted_findings AS (
@@ -185,8 +237,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   return json({
-    scanId,
-    ...result,
+    ...scanResult,
     persistence: saved ? "saved" : "not_configured_or_unavailable"
   });
 };
