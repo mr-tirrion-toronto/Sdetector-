@@ -92,8 +92,9 @@ export function analyzeBusinessClaims(text: string, html = ""): BusinessClaimAss
       "Find the legal entity name and registration number, verify them in the relevant official company registry, and confirm the contact details and legal policies through independent sources.");
   }
 
+  const earningClaimDetected = chatToEarn || highDailyEarnings || withdrawalFee || upfrontFee || rechargeToEarn || referralRewards || payoutMarketing;
   return {
-    model: chatToEarn ? "paid_chat_or_task_claim" : signals.length ? "online_earning_claim" : "not_detected",
+    model: chatToEarn ? "paid_chat_or_task_claim" : earningClaimDetected ? "online_earning_claim" : "not_detected",
     signals,
     findings,
     payoutVerification: "not_verified_from_public_page",
