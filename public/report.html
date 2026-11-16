@@ -18,7 +18,12 @@ try{
  const assessment=labels[data.assessmentStatus]||'Preliminary assessment';
  const level=String(data.riskLevel||'unknown').toUpperCase();
  const riskText=data.assessmentStatus==='known_threat_detected'?'A matching indicator was found in a configured threat-intelligence source. Do not visit or interact with this website.':data.assessmentStatus==='no_known_threat_match'?'No exact match was found in the configured threat feeds. This does not prove the website is safe.':'The scanner found URL-pattern evidence only. This assessment is not a definitive verdict.';
- const feed=data.threatIntelligence||{};\n const di=data.domainIntelligence||{};\n const dv=di.verdict||{};\n const rg=di.registration||{};\n const inf=di.infrastructure||{};\n const camp=di.campaign||{};
+ const feed=data.threatIntelligence||{};
+ const di=data.domainIntelligence||{};
+ const dv=di.verdict||{};
+ const rg=di.registration||{};
+ const inf=di.infrastructure||{};
+ const camp=di.campaign||{};
  root.innerHTML='<div class="top"><div class="brand">SCAM DETECTOR<small>WEBSITE RISK INTELLIGENCE</small></div><div class="report-label">SECURITY ASSESSMENT<br>CONFIDENTIAL · USER-GENERATED</div></div>'+
  '<h1 class="title">Website Security Assessment</h1><p class="subtitle">A plain-language summary of the checks performed on the submitted website address.</p>'+
  '<div class="meta"><div><small>Website / hostname</small><strong>'+esc(data.hostname)+'</strong></div><div><small>Assessment reference</small><strong>'+esc(data.scanId)+'</strong></div><div><small>Assessment date</small><strong>'+esc(new Date(data.scannedAt||Date.now()).toLocaleString())+'</strong></div><div><small>Assessment method</small><strong>URL pattern analysis'+(feed.status&&feed.status!=='not_configured'?' + local threat-intelligence lookup':'')+'</strong></div></div>'+
