@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { inspectLiveDomain } from "../src/live-inspection";
 
-function providers(options: { firecrawlStatus?: number; address?: string; sans?: string[]; ctNames?: string[] } = {}) {
+function providers(options: { firecrawlStatus?: number; address?: string; sans?: string[]; ctNames?: string[]; pageHtml?: string; pageTitle?: string } = {}) {
   let requestedUrl = "";
   let requestedRdapUrl = "";
   let requestedCtDomain = "";
@@ -39,8 +39,8 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
         return Response.json({ error: "rate limited" }, { status: options.firecrawlStatus });
       }
       return Response.json({ success: true, data: {
-        html: '<form><input type="password"></form> Verify your account immediately',
-        metadata: { title: "Account verification", url: body.url, statusCode: 200, contentType: "text/html" }
+        html: options.pageHtml ?? "<form><input type='password'></form> Verify your account immediately",
+        metadata: { title: options.pageTitle ?? "Account verification", url: body.url, statusCode: 200, contentType: "text/html" }
       } });
     }
     throw new Error("Unexpected provider URL: " + url);
@@ -69,6 +69,14 @@ describe("inspectLiveDomain", () => {
     expect(result.websiteContent.data?.indicators).toContain("urgent_account_pressure");
     expect(result.findings.map(f => f.code)).toContain("LIVE_PASSWORD_INPUT");
     expect(mock.getRequestedUrl()).toBe("https://example.com/login");
+  });
+
+
+  it("detects a parked or for-sale domain instead of treating it as an operating business", async () => {
+    const mock = providers({ pageHtml: "Buy this domain. This domain is parked.", pageTitle: "example.com - Resources and Information." });
+    const result = await inspectLiveDomain("https://example.com/", "example.com", mock.fetcher);
+    expect(result.websiteContent.data?.indicators).toContain("domain_parked_or_for_sale");
+    expect(result.findings.map(f => f.code)).toContain("DOMAIN_PARKED_OR_FOR_SALE");
   });
 
   it("uses the registrable domain for RDAP and CT while validating TLS against the exact hostname", async () => {

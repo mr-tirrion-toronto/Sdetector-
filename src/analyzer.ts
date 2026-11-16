@@ -15,7 +15,7 @@ export interface ScanResult {
   hostname: string;
   score: number;
   riskLevel: "low" | "guarded" | "high" | "critical";
-  assessmentStatus: "known_threat_detected" | "no_known_threat_match" | "threat_intel_partial" | "threat_intel_unavailable" | "insufficient_evidence" | "preliminary_signals_detected";
+  assessmentStatus: "known_threat_detected" | "no_known_threat_match" | "threat_intel_partial" | "threat_intel_unavailable" | "insufficient_evidence" | "preliminary_signals_detected" | "business_claims_need_verification";
   confidence: "limited";
   findings: Finding[];
   limitations: string[];

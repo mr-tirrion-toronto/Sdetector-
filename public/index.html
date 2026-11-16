@@ -51,6 +51,7 @@
       <article class="feature"><div class="feature-icon">◎</div><h3>Actionable guidance</h3><p>Each detected signal includes evidence and a recommendation to help you decide what to do next.</p></article>
       <article class="feature"><div class="feature-icon">⌁</div><h3>Live domain intelligence</h3><p>Check DNS, domain registration age, certificate issuance history and provider-reported threat context.</p></article>
       <article class="feature"><div class="feature-icon">▤</div><h3>Live page inspection</h3><p>Inspect public page text for credential requests, suspicious forms, urgency and common scam lures.</p></article>
+      <article class="feature"><div class="feature-icon">◎</div><h3>Business legitimacy signals</h3><p>Review paid-chat and online-earning claims, upfront fees, recharge-to-earn language, withdrawal traps and unverified payout promises.</p></article>
       <article class="feature"><div class="feature-icon">⌘</div><h3>Personal investigations</h3><p>Create an account to keep private scan history and manage revocable API keys for integrations.</p></article>
     </div>
   </section>
@@ -62,7 +63,7 @@
       <article><div class="step-num">03 / DECIDE</div><h3>Use the evidence</h3><p>Review the evidence, save your report and verify important links through trusted channels.</p></article>
     </div>
   </section>
-  <aside class="disclaimer"><strong>Important security note</strong><br>Scam Detector combines URL-pattern analysis, live DNS lookups, Certificate Transparency history, RDAP registration data, public website-content inspection, PhishDestroy domain intelligence and local threat-feed matching when feeds are current. Firecrawl receives only the public hostname and path; URL query strings, fragments and browser credentials are removed. Hostnames with private or reserved DNS answers are not sent to Firecrawl. Certificate Transparency is not a live TLS handshake, and redirect reporting is limited to the final URL reported by Firecrawl. This is not a full malware sandbox and it does not execute downloaded files. A zero score or missing feed match is not proof that a website is safe. Never submit passwords, payment details, one-time codes or private information to a site you do not trust.</aside>
+  <aside class="disclaimer"><strong>Important security note</strong><br>Scam Detector combines URL-pattern analysis, live DNS lookups, Certificate Transparency history, RDAP registration data, public website-content inspection, PhishDestroy domain intelligence and local threat-feed matching when feeds are current. Firecrawl receives only the public hostname and path; URL query strings, fragments and browser credentials are removed. Hostnames with private or reserved DNS answers are not sent to Firecrawl. Certificate Transparency is not a live TLS handshake, and redirect reporting is limited to the final URL reported by Firecrawl. This is not a full malware sandbox and it does not execute downloaded files. A zero score or missing feed match is not proof that a website is safe. Public-page content cannot independently prove that a platform pays its users. Business identity and payout claims require independent verification. Never submit passwords, payment details, one-time codes or private information to a site you do not trust.</aside>
   <footer><span class="footer-brand">SCAM DETECTOR</span><span>Independent website risk awareness · Cloudflare Pages</span><span><a href="/terms.html">Terms of Service</a> · <a href="/privacy.html">Privacy Policy</a></span><span>© <span id="year"></span> Scam Detector · Created by Mr Tirrion</span></footer>
 </div>
 <script>
@@ -158,10 +159,11 @@ function renderResult(data){
     (pageData.businessSignals?.length?'<div class="feed-row"><span>Business / earnings signals</span><b>'+escapeHtml(pageData.businessSignals.join(', '))+'</b></div>':'')+
     (pageData.payoutVerification?'<div class="feed-row"><span>Payout verification</span><b>Not independently verified</b></div>':'')+
     '<p class="feed-note">'+escapeHtml(live.privacy||'External content inspection may be incomplete. A missing signal is not proof of safety.')+'</p></div>';
-  const neutralAssessment=['no_known_threat_match','threat_intel_partial','threat_intel_unavailable','insufficient_evidence'].includes(assessment);
+  const neutralAssessment=['business_claims_need_verification','no_known_threat_match','threat_intel_partial','threat_intel_unavailable','insufficient_evidence'].includes(assessment);
   const badgeClass=knownThreat?'critical':(neutralAssessment?'insufficient':level);
   const labels={
     known_threat_detected:'KNOWN THREAT MATCH',
+    business_claims_need_verification:'BUSINESS CLAIMS NEED VERIFICATION',
     no_known_threat_match:'NO KNOWN THREAT MATCH',
     threat_intel_partial:'PARTIAL INTELLIGENCE',
     threat_intel_unavailable:'INTELLIGENCE UNAVAILABLE',
