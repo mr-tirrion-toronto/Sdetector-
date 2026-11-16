@@ -21,7 +21,7 @@
 - Firecrawl receives only the public hostname and path. Query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Private/reserved DNS targets and non-standard ports are not sent to the provider.
 - Redirect reporting compares the final URL reported by Firecrawl with the submitted hostname. It is not a complete network-level redirect trace.
 
-### Accounts and API keys
+#### Business legitimacy and earnings-claim analysis\n- Detects public-page claims about paid chatting, advertised daily earnings, referral rewards, payout totals/testimonials, and possible upfront, recharge-to-earn or pay-to-withdraw language.\n- Separates neutral marketing claims from high-risk advance-payment signals; a paid-chat claim alone is not treated as fraud.\n- Explicitly marks payouts as not independently verified from public page content. This scanner does not create accounts, deposit funds or simulate withdrawals.\n- These explainable rules are not an AI verdict. Absence of a signal is not proof of legitimacy; operator identity, contracts, real customers and actual payouts require independent verification.\n\n## Accounts and API keys
 - Signup, login and logout.
 - Salted PBKDF2-SHA256 password hashes and secure HttpOnly session cookies.
 - Private per-user scan history.
