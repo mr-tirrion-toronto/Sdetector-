@@ -128,7 +128,7 @@ async function readBounded(response: Response, maxBytes = MAX_FEED_BYTES): Promi
 
 async function setFeedStatus(
   sql: any,
-  source: "urlhaus" | "phishtank",
+  source: "urlhaus" | "phishtank" | "phishunt",
   status: "ok" | "error" | "not_configured",
   details: { etag?: string | null; itemCount?: number; errorCode?: string; success?: boolean } = {}
 ): Promise<void> {
@@ -152,7 +152,7 @@ async function setFeedStatus(
   `;
 }
 
-async function getFeedState(sql: any, source: "urlhaus" | "phishtank") {
+async function getFeedState(sql: any, source: "urlhaus" | "phishtank" | "phishunt") {
   const rows = await sql`
     SELECT etag, last_success_at, last_checked_at, item_count
     FROM threat_feed_status WHERE source = ${source}
@@ -162,7 +162,7 @@ async function getFeedState(sql: any, source: "urlhaus" | "phishtank") {
 
 async function upsertIndicators(
   sql: any,
-  source: "urlhaus" | "phishtank",
+  source: "urlhaus" | "phishtank" | "phishunt",
   indicators: Indicator[]
 ): Promise<void> {
   for (let offset = 0; offset < indicators.length; offset += BATCH_SIZE) {
@@ -222,6 +222,32 @@ async function makeIndicators(
       source_updated_at: source === "urlhaus"
         ? (record.dateadded || null)
         : (record.verification_time || record.submission_time || null)
+    });
+  }
+  return result;
+}
+
+export async function makePhishuntIndicators(input: string): Promise<Indicator[]> {
+  const result: Indicator[] = [];
+  const seen = new Set<string>();
+  for (const line of input.split(/\\r?\\n/)) {
+    const value = line.trim();
+    if (!value || value.startsWith("#")) continue;
+    const canonical = canonicalUrl(value.includes("://") ? value : "https://" + value);
+    if (!canonical || !canonical.hostname.includes(".")) continue;
+    const hostname = canonical.hostname.toLowerCase().replace(/\\.$/, "");
+    if (/^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(hostname) ||
+        hostname === "localhost" || hostname.endsWith(".local")) continue;
+    const indicatorHash = await sha256("domain:" + hostname);
+    if (seen.has(indicatorHash)) continue;
+    seen.add(indicatorHash);
+    result.push({
+      indicator_hash: indicatorHash,
+      source_id: null,
+      hostname,
+      threat_type: "phishing_domain",
+      target: null,
+      source_updated_at: null
     });
   }
   return result;
@@ -326,13 +352,53 @@ async function syncPhishTank(sql: any, key?: string): Promise<void> {
   }
 }
 
+async function syncPhishunt(sql: any): Promise<void> {
+  const source = "phishunt";
+  const endpoint = "https://raw.githubusercontent.com/0xDanielLopez/phishunt-feed/main/feed.txt";
+  try {
+    const state = await getFeedState(sql, source);
+    const response = await fetch(endpoint, {
+      headers: {
+        "user-agent": USER_AGENT,
+        "accept": "text/plain",
+        ...(state?.etag ? { "if-none-match": state.etag } : {})
+      },
+      signal: AbortSignal.timeout(20000),
+      redirect: "error"
+    });
+    if (response.status === 304) {
+      await setFeedStatus(sql, source, "ok", {
+        etag: state?.etag,
+        itemCount: Number(state?.item_count ?? 0),
+        success: true
+      });
+      return;
+    }
+    if (!response.ok) throw new Error("HTTP_" + response.status);
+    const body = await readBounded(response, 8 * 1024 * 1024);
+    const indicators = await makePhishuntIndicators(body);
+    if (!indicators.length) throw new Error("EMPTY_OR_UNRECOGNIZED_FEED");
+    await upsertIndicators(sql, source, indicators);
+    await setFeedStatus(sql, source, "ok", {
+      etag: response.headers.get("etag"),
+      itemCount: indicators.length,
+      success: true
+    });
+  } catch (error) {
+    await setFeedStatus(sql, source, "error", {
+      errorCode: error instanceof Error ? error.message.slice(0, 80) : "UNKNOWN_ERROR"
+    });
+  }
+}
+
 async function runSync(env: Env): Promise<void> {
   if (!env.DATABASE_URL) throw new Error("DATABASE_URL_NOT_CONFIGURED");
   const sql = neon(env.DATABASE_URL);
 
   await Promise.all([
     syncUrlhaus(sql, env.URLHAUS_AUTH_KEY),
-    syncPhishTank(sql, env.PHISHTANK_APP_KEY)
+    syncPhishTank(sql, env.PHISHTANK_APP_KEY),
+    syncPhishunt(sql)
   ]);
 
   await sql`DELETE FROM threat_indicators WHERE expires_at < NOW() - INTERVAL '7 days'`;
