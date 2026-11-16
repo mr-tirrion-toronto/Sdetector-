@@ -187,12 +187,17 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike):
 }
 
 export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:FetchLike=fetch):Promise<LiveInspection> {
-  const [dns,certificateTransparency,registration,websiteContent]=await Promise.all([
-    dnsLookup(hostname,fetcher),certificateLookup(hostname,fetcher),
+  const [dns,certificateTransparency,tls,registration,websiteContent]=await Promise.all([
+    dnsLookup(hostname,fetcher),certificateLookup(hostname,fetcher),tlsLookup(hostname,fetcher),
     rdapLookup(hostname,fetcher),contentLookup(inputUrl,hostname,fetcher)
   ]);
   const findings:Finding[]=[];
   const add=(code:string,title:string,severity:"info"|"low"|"medium"|"high",points:number,evidence:string,recommendation:string)=>findings.push({code,title,severity,points,evidence,recommendation});
+  if(tls.status==="available"&&tls.data){
+    if(tls.data.expired===true)add("LIVE_TLS_CERT_EXPIRED","Live HTTPS certificate is expired","medium",15,"The TLS inspection provider reports that the certificate presented by "+hostname+" is expired.","Do not enter sensitive information. Contact the website owner through an independently verified channel.");
+    else if(tls.data.daysUntilExpiry!==null&&tls.data.daysUntilExpiry<14)add("LIVE_TLS_CERT_NEAR_EXPIRY","Live HTTPS certificate is close to expiry","low",5,"The presented TLS certificate is due to expire in approximately "+tls.data.daysUntilExpiry+" days.","This is a site-maintenance warning, not proof of phishing. Avoid sensitive actions if the browser also reports a certificate warning.");
+    if(tls.data.chainComplete===false||tls.data.problems.length>0)add("LIVE_TLS_CHAIN_PROBLEM","TLS certificate chain has validation problems","medium",12,"The TLS inspection provider reported: "+(tls.data.problems.join("; ")||"an incomplete certificate chain")+".","Do not bypass browser certificate warnings. Verify the destination independently.");
+  }
   if(dns.status==="available"&&dns.data?.records.length===0)add("DNS_NO_PUBLIC_RECORDS","No public DNS records were returned","medium",15,"The public DNS lookup returned no A, AAAA, MX, NS or TXT answers.","Confirm the domain spelling and verify the domain through its official registrar.");
   if(certificateTransparency.status==="available"&&certificateTransparency.data?.expired===true)add("CT_LATEST_CERT_EXPIRED","Latest certificate-transparency record is expired","low",5,"The latest certificate record found in Certificate Transparency has an expiry date in the past. This does not establish the live endpoint's current certificate state.","Open the organisation's official site independently and check its browser TLS certificate before entering information.");
   if(registration.status==="available"&&registration.data?.ageDays!==null&&registration.data?.ageDays!==undefined&&registration.data.ageDays<30)add("DOMAIN_RECENTLY_REGISTERED","Domain was registered recently","medium",15,"RDAP registration data indicates an age of approximately "+registration.data.ageDays+" days.","Treat unexpected links on a recently registered domain with extra caution and verify the sender independently.");
