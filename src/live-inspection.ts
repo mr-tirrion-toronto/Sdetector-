@@ -4,6 +4,7 @@ type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respo
 interface Check<T> { status: "available" | "unavailable" | "not_checked"; errorCode: string | null; data: T | null }
 interface DnsData { records: Array<{type:string;value:string;ttl:number|null}>; dnssec: boolean|null }
 interface CertificateData { source:string; latestIssuedAt:string|null; latestExpiresAt:string|null; issuer:string|null; commonName:string|null; expired:boolean|null }
+interface TlsData { subject:string|null; issuer:string|null; notBefore:string|null; notAfter:string|null; expired:boolean|null; daysUntilExpiry:number|null; signatureAlgorithm:string|null; publicKeyAlgorithm:string|null; publicKeyBits:number|null; chainLength:number; chainComplete:boolean|null; problems:string[] }
 interface RegistrationData { createdAt:string|null; registrar:string|null; ageDays:number|null }
 interface WebsiteContentData { title:string|null; fetchedUrl:string|null; redirected:boolean; contentBytes:number; indicators:string[] }
 export interface LiveInspection {
@@ -11,6 +12,7 @@ export interface LiveInspection {
   privacy: string;
   dns: Check<DnsData>;
   certificateTransparency: Check<CertificateData>;
+  tls: Check<TlsData>;
   registration: Check<RegistrationData>;
   websiteContent: Check<WebsiteContentData>;
   findings: Finding[];
@@ -102,6 +104,35 @@ async function certificateLookup(hostname:string,fetcher:FetchLike):Promise<Chec
     }};
   } catch(error) { return unavailable(error instanceof Error?error.name:"CT_LOOKUP_FAILED"); }
 }
+async function tlsLookup(hostname:string,fetcher:FetchLike):Promise<Check<TlsData>> {
+  try {
+    if(!safeHost(hostname))return unavailable("HOST_NOT_ELIGIBLE_FOR_TLS_CHECK");
+    const response=await fetchTimed(fetcher,"https://tools.trustico.com/api/chain/analyze-url",{
+      method:"POST",headers:{"content-type":"application/json",accept:"application/json"},
+      body:JSON.stringify({url:"https://"+hostname+"/"}),redirect:"follow"
+    });
+    if(response.status===429)throw new Error("TLS_PROVIDER_RATE_LIMITED");
+    if(!response.ok)throw new Error("TLS_PROVIDER_HTTP_"+response.status);
+    const payload=await response.json() as unknown;
+    if(!isRecord(payload)||payload.success!==true||!isRecord(payload.data)||!isRecord(payload.data.certificate))throw new Error("TLS_PROVIDER_INVALID_RESPONSE");
+    const cert=payload.data.certificate;
+    const validation=isRecord(payload.data.validation)?payload.data.validation:{};
+    const chain=Array.isArray(payload.data.chain)?payload.data.chain:[];
+    const problems=Array.isArray(validation.problems)?validation.problems.map(value=>String(value).slice(0,240)).slice(0,10):[];
+    const publicKey=isRecord(cert.publicKey)?cert.publicKey:{};
+    return {status:"available",errorCode:null,data:{
+      subject:isRecord(cert.subject)?String(cert.subject.commonName??"").slice(0,253)||null:null,
+      issuer:isRecord(cert.issuer)?String(cert.issuer.commonName??"").slice(0,180)||null:null,
+      notBefore:safeDate(cert.notBefore),notAfter:safeDate(cert.notAfter),
+      expired:typeof cert.isExpired==="boolean"?cert.isExpired:null,
+      daysUntilExpiry:typeof cert.daysUntilExpiry==="number"?cert.daysUntilExpiry:null,
+      signatureAlgorithm:typeof cert.signatureAlgorithm==="string"?cert.signatureAlgorithm.slice(0,100):null,
+      publicKeyAlgorithm:typeof publicKey.algorithm==="string"?publicKey.algorithm.slice(0,40):null,
+      publicKeyBits:typeof publicKey.bits==="number"?publicKey.bits:null,
+      chainLength:chain.length,chainComplete:typeof validation.chainComplete==="boolean"?validation.chainComplete:null,problems
+    }};
+  } catch(error) { return unavailable(error instanceof Error?error.message.slice(0,80):"TLS_LOOKUP_FAILED"); }
+}
 async function rdapLookup(hostname:string,fetcher:FetchLike):Promise<Check<RegistrationData>> {
   try {
     const response=await fetchTimed(fetcher,"https://rdap.org/domain/"+encodeURIComponent(hostname),{
@@ -179,9 +210,9 @@ export async function inspectLiveDomain(inputUrl:string,hostname:string,fetcher:
   const limitations=[
     "Live content is retrieved by the Jina Reader service from a public URL. The submitted query string and fragment are removed before the hostname and path are sent to that service.",
     "The content reader respects robots.txt and does not receive browser cookies, passwords or authentication headers from this scanner.",
-    "Certificate Transparency shows publicly logged certificate issuance history. It is not a live TLS handshake and cannot prove the current server certificate is valid.",
+    "Live TLS certificate details and chain validation are obtained through Trustico SSL Tools. The hostname only is sent to that provider, which has a shared unauthenticated rate limit. Certificate Transparency is a separate public issuance-history source.",
     "Redirect information is limited to the final URL reported by the content reader, not a complete packet-level redirect trace.",
     "Page content can change, be personalised, or be hidden behind JavaScript or access controls. A content check is not a complete malware sandbox."
   ];
-  return {checkedAt:new Date().toISOString(),privacy:"The reader receives only the URL hostname and path. Query strings, fragments, embedded credentials and browser cookies are not forwarded.",dns,certificateTransparency,registration,websiteContent,findings,limitations};
+  return {checkedAt:new Date().toISOString(),privacy:"The content reader receives only the URL hostname and path. Query strings, fragments, embedded credentials and browser cookies are not forwarded. The TLS provider receives only the HTTPS hostname.",dns,certificateTransparency,tls,registration,websiteContent,findings,limitations};
 }
