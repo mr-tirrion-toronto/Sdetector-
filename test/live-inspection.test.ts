@@ -5,7 +5,10 @@ describe("inspectLiveDomain", () => {
   it("collects DNS, certificate transparency, RDAP and page-content signals", async () => {
     const fetcher: typeof fetch = async (input) => {
       const url = String(input);
-      if (url === "https://tools.trustico.com/api/chain/analyze-url") {\n        return Response.json({ success: true, data: { certificate: { subject: { commonName: "example.com" }, issuer: { commonName: "Example CA" }, notBefore: "2026-01-01T00:00:00Z", notAfter: "2027-01-01T00:00:00Z", isExpired: false, daysUntilExpiry: 46, signatureAlgorithm: "ecdsa-with-SHA256", publicKey: { algorithm: "ECC", bits: 256 } }, chain: [{},{}], validation: { chainComplete: true, problems: [] } } });\n      }\n      if (url.startsWith("https://cloudflare-dns.com/")) {
+      if (url === "https://tools.trustico.com/api/chain/analyze-url") {
+        return Response.json({ success: true, data: { certificate: { subject: { commonName: "example.com" }, issuer: { commonName: "Example CA" }, notBefore: "2026-01-01T00:00:00Z", notAfter: "2027-01-01T00:00:00Z", isExpired: false, daysUntilExpiry: 46, signatureAlgorithm: "ecdsa-with-SHA256", publicKey: { algorithm: "ECC", bits: 256 } }, chain: [{},{}], validation: { chainComplete: true, problems: [] } } });
+      }
+      if (url.startsWith("https://cloudflare-dns.com/")) {
         return Response.json({ Status: 0, Answer: [{ type: 1, data: "93.184.216.34", TTL: 300 }] });
       }
       if (url.startsWith("https://crt.sh/")) {
@@ -22,7 +25,9 @@ describe("inspectLiveDomain", () => {
     const result = await inspectLiveDomain("https://example.com/login?token=private", "example.com", fetcher);
     expect(result.dns.status).toBe("available");
     expect(result.dns.data?.records[0]?.value).toBe("93.184.216.34");
-    expect(result.certificateTransparency.status).toBe("available");\n    expect(result.tls.status).toBe("available");\n    expect(result.tls.data?.chainComplete).toBe(true);
+    expect(result.certificateTransparency.status).toBe("available");
+    expect(result.tls.status).toBe("available");
+    expect(result.tls.data?.chainComplete).toBe(true);
     expect(result.registration.status).toBe("available");
     expect(result.websiteContent.status).toBe("available");
     expect(result.websiteContent.data?.indicators).toContain("password_input");
