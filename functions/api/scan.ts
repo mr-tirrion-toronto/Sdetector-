@@ -2,7 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { analyzeUrl } from "../../src/analyzer";
 import { lookupThreatIntelligence } from "../../src/threat-intel";
 import { investigateDomain } from "../../src/domain-intel";
-import { inspectLiveDomain } from "../../src/live-inspection";
+import { inspectLiveDomain, type TlsData } from "../../src/live-inspection";
 import { getAuthenticatedUser } from "../../src/auth";
 
 interface Env {
@@ -179,10 +179,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     findings: [] as typeof result.findings
   };
 
+  let cachedTls: TlsData | null = null;
+  try {
+    const cacheRows = await sql`SELECT tls_data FROM domain_tls_cache WHERE hostname = ${result.hostname} AND expires_at > NOW() LIMIT 1`;
+    cachedTls = ((cacheRows as Array<{tls_data:TlsData}>)[0]?.tls_data ?? null);
+  } catch (error) {
+    console.error("TLS_CACHE_READ_FAILED", error instanceof Error ? error.name : "UnknownError");
+  }
+
   const [localIntelResult, domainIntelResult, liveInspectionResult] = await Promise.allSettled([
     lookupThreatIntelligence(sql, result.normalizedUrl),
     investigateDomain(result.hostname),
-    inspectLiveDomain(result.inputUrl, result.hostname)
+    inspectLiveDomain(result.inputUrl, result.hostname, fetch, cachedTls)
   ]);
   if (localIntelResult.status === "fulfilled") {
     threatIntelligence = localIntelResult.value;
@@ -196,6 +204,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         infrastructure: null, registration: null, campaign: null, related: [] };
 
   const liveInspection = liveInspectionResult.status === "fulfilled" ? liveInspectionResult.value : null;
+  if (!cachedTls && liveInspection?.tls.status === "available" && liveInspection.tls.data) {
+    try {
+      await sql`INSERT INTO domain_tls_cache (hostname, tls_data, checked_at, expires_at, updated_at)
+        VALUES (${result.hostname}, ${JSON.stringify(liveInspection.tls.data)}::jsonb, NOW(), NOW() + INTERVAL '12 hours', NOW())
+        ON CONFLICT (hostname) DO UPDATE SET tls_data = EXCLUDED.tls_data, checked_at = NOW(),
+          expires_at = NOW() + INTERVAL '12 hours', updated_at = NOW()`;
+    } catch (error) {
+      console.error("TLS_CACHE_WRITE_FAILED", error instanceof Error ? error.name : "UnknownError");
+    }
+  }
   const externalConfirmed = domainIntelligence.status === "available" &&
     domainIntelligence.verdict?.threat === true;
   const findings = [...result.findings, ...threatIntelligence.findings, ...(liveInspection?.findings ?? [])];
