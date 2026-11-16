@@ -2,6 +2,8 @@ import { neon } from "@neondatabase/serverless";
 import { analyzeUrl } from "../../src/analyzer";
 import { lookupThreatIntelligence } from "../../src/threat-intel";
 import { investigateDomain } from "../../src/domain-intel";
+import { inspectLiveDomain } from "../../src/live-inspection";
+import { getAuthenticatedUser } from "../../src/auth";
 
 interface Env {
   DATABASE_URL?: string;
@@ -150,6 +152,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const scanId = crypto.randomUUID();
   const sql = neon(env.DATABASE_URL);
+  let authUser = null;
+  try { authUser = await getAuthenticatedUser(sql, request); }
+  catch { return json({ error: "Authentication service is temporarily unavailable." }, 503); }
+  if ((request.headers.get("Authorization") ?? "").startsWith("Bearer ") && !authUser) {
+    return json({ error: "The supplied API key is invalid or revoked." }, 401);
+  }
 
   try {
     if (!(await applyRateLimit(sql, request))) {
@@ -171,9 +179,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     findings: [] as typeof result.findings
   };
 
-  const [localIntelResult, domainIntelResult] = await Promise.allSettled([
+  const [localIntelResult, domainIntelResult, liveInspectionResult] = await Promise.allSettled([
     lookupThreatIntelligence(sql, result.normalizedUrl),
-    investigateDomain(result.hostname)
+    investigateDomain(result.hostname),
+    inspectLiveDomain(result.inputUrl, result.hostname)
   ]);
   if (localIntelResult.status === "fulfilled") {
     threatIntelligence = localIntelResult.value;
@@ -221,7 +230,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     ? Math.round((Number(domainIntelligence.assessment?.score ?? domainIntelligence.verdict?.riskScore ?? 0) /
         Number(domainIntelligence.assessment?.maxScore ?? 100)) * 100)
     : 0;
-  const score = confirmedThreat ? 100 : Math.max(result.score, Math.min(100, externalScore));
+  const livePoints = (liveInspection?.findings ?? []).reduce((total, finding) => total + finding.points, 0);\n  const score = confirmedThreat ? 100 : Math.min(100, Math.max(result.score, Math.min(100, externalScore)) + livePoints);
   const riskLevel = score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "guarded" : "low";
   let assessmentStatus:
     | "known_threat_detected"
@@ -247,7 +256,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } else if (threatIntelligence.status === "partial" || threatIntelligence.status === "unavailable") {
     limitations.push("One or more scheduled threat-intelligence feeds are unavailable or stale. A missing match is not conclusive.");
   }
-  if (domainIntelligence.status === "available") {
+  if (liveInspection) limitations.push(...liveInspection.limitations);\n  else limitations.push("Live DNS, certificate, registration and page-content inspection could not be completed.");\n  if (domainIntelligence.status === "available") {
     limitations.push("The PhishDestroy provider receives the hostname only; the submitted URL path, query string and fragment are not sent.");
     if (!confirmedThreat && findings.length === 0) {
       limitations.push("No threat listing was found by PhishDestroy at check time. An unlisted domain is not guaranteed safe.");
