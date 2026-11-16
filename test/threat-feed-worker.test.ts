@@ -9,9 +9,24 @@ describe("threat feed parsing", () => {
     ]);
   });
 
-  it("ignores comment lines before the header", () => {
-    const rows = csvObjects('# URLhaus feed\n# generated today\nid,url,url_status\n1,https://bad.example/,online');
-    expect(rows).toEqual([{id:"1",url:"https://bad.example/",url_status:"online"}]);
+  it("preserves URLhaus comment-prefixed CSV header", () => {
+    const rows = csvObjects('# URLhaus Database Dump\n# generated today\n# id,dateadded,url,url_status,threat,tags,urlhaus_link,reporter\n"123","2026-11-16 12:00:00","https://bad.example/a","online","malware_download","tag","https://urlhaus.abuse.ch/url/123/","reporter"');
+    expect(rows).toEqual([{
+      id:"123",
+      dateadded:"2026-11-16 12:00:00",
+      url:"https://bad.example/a",
+      url_status:"online",
+      threat:"malware_download",
+      tags:"tag",
+      urlhaus_link:"https://urlhaus.abuse.ch/url/123/",
+      reporter:"reporter"
+    }]);
+  });
+
+  it("parses the PhishTank CSV header", () => {
+    const rows = csvObjects('phish_id,url,phish_detail_url,submission_time,verified,verification_time,online,target\n123,https://bad.example/,https://phishtank.org/phish_detail.php?phish_id=123,2026-11-16T10:00:00Z,yes,2026-11-16T10:01:00Z,yes,Example Bank');
+    expect(rows[0].phish_id).toBe("123");
+    expect(rows[0].verified).toBe("yes");
   });
 
   it("canonicalizes host case and strips credentials and fragments", () => {
