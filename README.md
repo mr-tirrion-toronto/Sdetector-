@@ -38,14 +38,14 @@ Open the account workspace at `/account.html`.
 
 ## Threat-intelligence feeds
 
-The repository contains a separate Cloudflare Cron Worker that imports:
+The repository contains a Cloudflare Cron Worker that triggers the protected Pages feed importer every five minutes. The Pages Function uses the existing `DATABASE_URL` secret; the Cron Worker only needs a matching `SYNC_SECRET` and Pages `FEED_SYNC_SECRET`. The feed sources are:
 - **Phishunt** — keyless public phishing-domain feed released under CC0 1.0.
 - **URLhaus** — optional authenticated integration.
 - **PhishTank** — optional authenticated integration.
 
 Indicators are normalized and hashed before storage. Raw feed URLs are not stored. Expired indicators are excluded from matching.
 
-**Deployment state:** the Phishunt importer and five-minute Cron configuration are implemented, and the production database schema supports Phishunt. The separate feed Worker still needs to be deployed and given its encrypted `DATABASE_URL` secret. Cloudflare Pages secrets do not automatically transfer to a separate Worker. Follow [feed-worker/README.md](feed-worker/README.md). Until its first successful sync, the dashboard reports no successful feed sync.
+**Deployment state:** the Phishunt importer and protected Pages endpoint are implemented, and the production database schema supports Phishunt. The separate Cron Worker still needs deployment with `SYNC_SECRET`, and Pages needs the matching `FEED_SYNC_SECRET`. No Neon credential needs to be copied to the Worker. Follow [feed-worker/README.md](feed-worker/README.md). Until its first successful sync, the dashboard reports no successful feed sync.
 
 ## How to use the scanner
 1. Open the public scanner.
