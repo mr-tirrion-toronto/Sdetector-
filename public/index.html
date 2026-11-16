@@ -133,6 +133,20 @@ function renderResult(data){
     (domainIntel.assessment?'<div class="feed-row"><span>Pattern assessment</span><b>'+escapeHtml(domainIntel.assessment.risk)+' · '+Number(domainIntel.assessment.score||0)+'/'+Number(domainIntel.assessment.maxScore||100)+'</b></div>':'')+
     (domainDetails.length?domainDetails.map(item=>'<div class="feed-row"><span>'+escapeHtml(item)+'</span></div>').join(''):'')+
     '<p class="feed-note">'+(domainIntel.status==='available'?'Only the hostname is sent to PhishDestroy; the full URL path and query are not shared. A non-listed result is not proof of safety.':'Live domain intelligence could not be confirmed. This is not a clean verdict.')+'</p></div>';
+  const live=data.liveInspection||{};
+  const dns=live.dns||{},dnsRecords=dns.data?.records||[];
+  const cert=live.certificateTransparency||{},certData=cert.data||{};
+  const reg=live.registration||{},regData=reg.data||{};
+  const page=live.websiteContent||{},pageData=page.data||{};
+  const livePanel='<div class="feed-panel"><strong>Live website inspection</strong>'+
+    '<div class="feed-row"><span>DNS records</span><b>'+escapeHtml(dns.status==='available'?dnsRecords.length+' records':'Unavailable')+'</b></div>'+
+    (dnsRecords.length?'<div class="feed-row"><span>'+escapeHtml(dnsRecords.slice(0,3).map(r=>r.type+': '+r.value).join(' · '))+'</span></div>':'')+
+    '<div class="feed-row"><span>Certificate transparency</span><b>'+escapeHtml(cert.status==='available'?(certData.expired?'Latest record expired':'Certificate record found'):'Unavailable')+'</b></div>'+
+    '<div class="feed-row"><span>Domain registration</span><b>'+escapeHtml(reg.status==='available'?(regData.ageDays===null?'Date unknown':numberText(regData.ageDays)+' days old'):'Unavailable')+'</b></div>'+
+    '<div class="feed-row"><span>Live page content</span><b>'+escapeHtml(page.status==='available'?'Inspected':'Unavailable')+'</b></div>'+
+    (pageData.title?'<div class="feed-row"><span>Page title</span><b>'+escapeHtml(pageData.title)+'</b></div>':'')+
+    (pageData.indicators?.length?'<div class="feed-row"><span>Content signals</span><b>'+escapeHtml(pageData.indicators.join(', '))+'</b></div>':'')+
+    '<p class="feed-note">'+escapeHtml(live.privacy||'External content inspection may be incomplete. A missing signal is not proof of safety.')+'</p></div>';
   const badgeClass=knownThreat?'critical':(assessment==='no_known_threat_match'?'insufficient':level);
   const labels={
     known_threat_detected:'KNOWN THREAT MATCH',
@@ -162,6 +176,7 @@ function renderResult(data){
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
     domainPanel+
+    livePanel+
     '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
     (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No configured warning patterns or known-feed matches were found. This is not a safety guarantee.</div>')+
     '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
