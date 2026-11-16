@@ -3,7 +3,7 @@
 This is a separate Cloudflare Worker from the Pages frontend/API. It imports provider feeds into Neon and runs on a five-minute Cron Trigger.
 
 ## Before deployment
-1. Apply migrations/0003_threat_intelligence.sql to the same production Neon database used by Pages.
+1. Apply migrations/0004_phishunt_feed.sql to the same production Neon database used by Pages.
 2. Create the encrypted Worker secret DATABASE_URL. URLhaus and PhishTank keys are optional provider integrations; Phishunt is keyless.
 3. Confirm your URLhaus account's community fair-use/commercial entitlement and the current PhishTank/Cisco terms.
 4. Deploy with npm run deploy:feed-worker.
@@ -28,4 +28,4 @@ Secrets must never be added to wrangler.toml, source files, GitHub commits, brow
 - Provider errors are recorded without logging keys or full feed URLs. The previous successful feed timestamp remains visible.
 
 ## Operations
-Check Worker Logs in Cloudflare after the first scheduled run. Both feeds should show status ok and a recent last_success_at in threat_feed_status. A successful deployment alone is not proof that a feed imported successfully.
+Check Worker Logs in Cloudflare after the first scheduled run. The Phishunt feed should show status ok; optional URLhaus/PhishTank feeds should show status ok when configured and a recent last_success_at in threat_feed_status. A successful deployment alone is not proof that a feed imported successfully.
