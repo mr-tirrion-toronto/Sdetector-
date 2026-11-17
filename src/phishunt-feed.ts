@@ -154,6 +154,9 @@ export async function syncPhishuntFeed(sql: any): Promise<void> {
       redirect: "follow"
     }, 20000);
     if (response.status === 304) {
+      // The unchanged ETag confirms the complete remote snapshot is still current.
+      // Refresh local TTLs so healthy 304 cycles do not let all indicators expire.
+      await sql`UPDATE threat_indicators SET imported_at = NOW(), expires_at = NOW() + (${INDICATOR_TTL_HOURS} * INTERVAL '1 hour') WHERE source = 'phishunt'`;
       await setFeedStatus(sql, "ok", {
         etag: state?.etag,
         itemCount: Number(state?.item_count ?? 0),
