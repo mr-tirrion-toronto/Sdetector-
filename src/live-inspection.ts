@@ -241,7 +241,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
       method:"POST",
       headers:{"content-type":"application/json",accept:"application/json"},
       body:JSON.stringify({
-        url:target.toString(),formats:["html"],onlyMainContent:false,
+        url:target.toString(),formats:["markdown","html"],onlyMainContent:false,
         timeout:12000,maxAge:21600000
       }),
       redirect:"follow"
@@ -253,22 +253,23 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
     if(!isRecord(payload)||payload.success!==true||!isRecord(payload.data))throw new Error("FIRECRAWL_INVALID_RESPONSE");
     const data=payload.data;
     const metadata=isRecord(data.metadata)?data.metadata:{};
-    const html=typeof data.html==="string"?data.html.slice(0,32000):"";
-    const markdown=typeof data.markdown==="string"?data.markdown.slice(0,32000):"";
-    const text=html||markdown;
-    const title=typeof metadata.title==="string"?metadata.title.slice(0,240):null;
+    const html=typeof data.html==="string"?data.html.slice(0,64000):"";
+    const markdown=typeof data.markdown==="string"?data.markdown.slice(0,64000):"";
+    // Prefer semantic text: HTML may be dominated by scripts/navigation and hide footer claims.
+    const text=markdown||html;
+    const signalText=html+"\n"+text;
     const fetchedUrl=typeof metadata.url==="string"?metadata.url.slice(0,2048):
       typeof metadata.sourceURL==="string"?metadata.sourceURL.slice(0,2048):null;
     const redirected=Boolean(fetchedUrl&&new URL(fetchedUrl).hostname.toLowerCase()!==hostname.toLowerCase());
     const indicators:string[]=[];
-    if(/<input[^>]+type\s*=\s*["']?password/i.test(text)||/password\s*(field|input|form)/i.test(text))indicators.push("password_input");
-    if(/<form\b/i.test(text)||/\[form\]|submit button|sign in form/i.test(text))indicators.push("form_detected");
-    if(/one[- ]time password|\botp\b|verification code|security code/i.test(text))indicators.push("credential_verification_language");
-    if(/wallet connect|connect wallet|seed phrase|recovery phrase|private key/i.test(text))indicators.push("crypto_wallet_or_secret_request");
-    if(/urgent.{0,50}(account|payment|verify|suspend)|account.{0,40}(suspended|locked|limited)|verify.{0,30}immediately/i.test(text))indicators.push("urgent_account_pressure");
-    if(/gift card|claim.{0,30}(prize|reward)|you have won|free crypto|guaranteed profit/i.test(text))indicators.push("prize_or_financial_lure");
-    if(/wire transfer|bank transfer|payment details|credit card number/i.test(text))indicators.push("payment_data_language");
-    if(/this domain is (?:parked|for sale)|domain (?:is )?(?:for sale|available for purchase)|buy this domain|domain parking|parked free|sedo domain parking|afternic/i.test(text)||/resources and information/i.test(title||""))indicators.push("domain_parked_or_for_sale");
+    if(/<input[^>]+type\s*=\s*["']?password/i.test(signalText)||/password\s*(field|input|form)/i.test(signalText))indicators.push("password_input");
+    if(/<form\b/i.test(signalText)||/\[form\]|submit button|sign in form/i.test(signalText))indicators.push("form_detected");
+    if(/one[- ]time password|\botp\b|verification code|security code/i.test(signalText))indicators.push("credential_verification_language");
+    if(/wallet connect|connect wallet|seed phrase|recovery phrase|private key/i.test(signalText))indicators.push("crypto_wallet_or_secret_request");
+    if(/urgent.{0,50}(account|payment|verify|suspend)|account.{0,40}(suspended|locked|limited)|verify.{0,30}immediately/i.test(signalText))indicators.push("urgent_account_pressure");
+    if(/gift card|claim.{0,30}(prize|reward)|you have won|free crypto|guaranteed profit/i.test(signalText))indicators.push("prize_or_financial_lure");
+    if(/wire transfer|bank transfer|payment details|credit card number/i.test(signalText))indicators.push("payment_data_language");
+    if(/this domain is (?:parked|for sale)|domain (?:is )?(?:for sale|available for purchase)|buy this domain|domain parking|parked free|sedo domain parking|afternic/i.test(signalText)||/resources and information/i.test(title||""))indicators.push("domain_parked_or_for_sale");
     const businessAssessment=analyzeBusinessClaims(text,html);
     return {status:"available",errorCode:null,data:{
       title,fetchedUrl,redirected,contentBytes:new TextEncoder().encode(text).byteLength,indicators,
