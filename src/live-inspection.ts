@@ -258,6 +258,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
     // Prefer semantic text: HTML may be dominated by scripts/navigation and hide footer claims.
     const text=markdown||html;
     const signalText=html+"\n"+text;
+    const title=typeof metadata.title==="string"?metadata.title.slice(0,240):null;
     const fetchedUrl=typeof metadata.url==="string"?metadata.url.slice(0,2048):
       typeof metadata.sourceURL==="string"?metadata.sourceURL.slice(0,2048):null;
     const redirected=Boolean(fetchedUrl&&new URL(fetchedUrl).hostname.toLowerCase()!==hostname.toLowerCase());
