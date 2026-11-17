@@ -155,6 +155,7 @@ function renderResult(data){
     '<div class="feed-row"><span>Domain registration</span><b>'+escapeHtml(reg.status==='available'?(regData.ageDays===null?'Date unknown':numberText(regData.ageDays)+' days old'):'Unavailable')+'</b></div>'+
     '<div class="feed-row"><span>Live page content</span><b>'+escapeHtml(page.status==='available'?'Inspected':('Unavailable'+(page.errorCode?' · '+page.errorCode:'')))+'</b></div>'+
     (pageData.title?'<div class="feed-row"><span>Page title</span><b>'+escapeHtml(pageData.title)+'</b></div>':'')+
+    (pageData.cachedAt&&Number.isFinite(Date.parse(pageData.cachedAt))?'<div class="feed-row"><span>Provider content timestamp</span><b>'+escapeHtml(new Date(pageData.cachedAt).toLocaleString())+'</b></div>':'')+
     (pageData.indicators?.length?'<div class="feed-row"><span>Content signals</span><b>'+escapeHtml(pageData.indicators.join(', '))+'</b></div>':'')+
     (pageData.businessSignals?.length?'<div class="feed-row"><span>Business / earnings signals</span><b>'+escapeHtml(pageData.businessSignals.join(', '))+'</b></div>':'')+
     (pageData.payoutVerification?'<div class="feed-row"><span>Payout verification</span><b>Not independently verified</b></div>':'')+
