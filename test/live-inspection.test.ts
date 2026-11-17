@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { inspectLiveDomain } from "../src/live-inspection";
 
-function providers(options: { firecrawlStatus?: number; address?: string; sans?: string[]; ctNames?: string[]; pageHtml?: string; pageTitle?: string } = {}) {
+function providers(options: { firecrawlStatus?: number; address?: string; sans?: string[]; ctNames?: string[]; pageHtml?: string; pageMarkdown?: string; pageTitle?: string } = {}) {
   let requestedUrl = "";
   let requestedRdapUrl = "";
   let requestedCtDomain = "";
@@ -40,6 +40,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
       }
       return Response.json({ success: true, data: {
         html: options.pageHtml ?? "<form><input type='password'></form> Verify your account immediately",
+        markdown: options.pageMarkdown,
         metadata: { title: options.pageTitle ?? "Account verification", url: body.url, statusCode: 200, contentType: "text/html" }
       } });
     }
@@ -71,6 +72,16 @@ describe("inspectLiveDomain", () => {
     expect(mock.getRequestedUrl()).toBe("https://example.com/login");
   });
 
+
+  it("uses semantic markdown to detect business claims hidden after script-heavy HTML", async () => {
+    const mock = providers({
+      pageHtml: "<html><script>" + "x".repeat(40000) + "</script></html>",
+      pageMarkdown: "Every foreigner who wants to chat pays the platform before they are connected. The prepaid balance is held by the company."
+    });
+    const result = await inspectLiveDomain("https://example.com/", "example.com", mock.fetcher);
+    expect(result.websiteContent.data?.businessSignals).toContain("operator_claims_prepaid_customer_funds");
+    expect(result.websiteContent.data?.businessFindings.map(f => f.code)).toContain("BUSINESS_PREPAID_CUSTOMER_FUNDS_CLAIM");
+  });
 
   it("detects a parked or for-sale domain instead of treating it as an operating business", async () => {
     const mock = providers({ pageHtml: "Buy this domain. This domain is parked.", pageTitle: "example.com - Resources and Information." });
