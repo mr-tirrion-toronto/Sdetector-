@@ -242,7 +242,7 @@ async function contentLookup(inputUrl:string,hostname:string,fetcher:FetchLike,d
       headers:{"content-type":"application/json",accept:"application/json"},
       body:JSON.stringify({
         url:target.toString(),formats:["markdown","html"],onlyMainContent:false,
-        timeout:12000,maxAge:21600000
+        timeout:12000,maxAge:300000
       }),
       redirect:"follow"
     });
