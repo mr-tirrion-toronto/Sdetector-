@@ -6,6 +6,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
   let requestedRdapUrl = "";
   let requestedCtDomain = "";
   let requestedFormats: string[] = [];
+  let requestedMaxAge: number | null = null;
   const fetcher: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url === "https://tools.trustico.com/api/chain/analyze-url") {
@@ -37,6 +38,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
       const body = JSON.parse(String(init?.body ?? "{}"));
       requestedUrl = body.url;
       requestedFormats = Array.isArray(body.formats) ? body.formats : [];
+      requestedMaxAge = typeof body.maxAge === "number" ? body.maxAge : null;
       if (options.firecrawlStatus && options.firecrawlStatus !== 200) {
         return Response.json({ error: "rate limited" }, { status: options.firecrawlStatus });
       }
@@ -48,7 +50,7 @@ function providers(options: { firecrawlStatus?: number; address?: string; sans?:
     }
     throw new Error("Unexpected provider URL: " + url);
   };
-  return { fetcher, getRequestedUrl: () => requestedUrl, getRequestedRdapUrl: () => requestedRdapUrl, getRequestedCtDomain: () => requestedCtDomain, getRequestedFormats: () => requestedFormats };
+  return { fetcher, getRequestedUrl: () => requestedUrl, getRequestedRdapUrl: () => requestedRdapUrl, getRequestedCtDomain: () => requestedCtDomain, getRequestedFormats: () => requestedFormats, getRequestedMaxAge: () => requestedMaxAge };
 }
 
 describe("inspectLiveDomain", () => {
@@ -83,6 +85,7 @@ describe("inspectLiveDomain", () => {
     const result = await inspectLiveDomain("https://example.com/", "example.com", mock.fetcher);
     expect(result.websiteContent.data?.businessSignals).toContain("operator_claims_prepaid_customer_funds");
     expect(mock.getRequestedFormats()).toEqual(["markdown", "html"]);
+    expect(mock.getRequestedMaxAge()).toBe(300000);
     expect(result.websiteContent.data?.businessFindings.map(f => f.code)).toContain("BUSINESS_PREPAID_CUSTOMER_FUNDS_CLAIM");
   });
 
