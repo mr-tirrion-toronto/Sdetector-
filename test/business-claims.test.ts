@@ -3,6 +3,11 @@ import { analyzeBusinessClaims } from "../src/business-claims";
 
 describe("analyzeBusinessClaims", () => {
 
+  it("extracts only explicitly disclosed legal-operator name candidates", () => {
+    const result = analyzeBusinessClaims("This platform is operated by Example Chat Limited. Get paid to chat.", "");
+    expect(result.operatorDisclosure.operatorNameCandidates).toContain("Example Chat Limited");
+  });
+
   it("reports operator identity disclosure without claiming official verification", () => {
     const result = analyzeBusinessClaims("Example platform. support@example.com. Example Limited.", '<a href="/terms">Terms of Service</a><a href="/privacy">Privacy Policy</a>');
     expect(result.operatorDisclosure.legalEntityDetected).toBe(true);
