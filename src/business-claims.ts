@@ -6,7 +6,7 @@ export interface BusinessClaimAssessment {
   findings: Finding[];
   payoutVerification: "not_verified_from_public_page";
   operatorVerification: "not_independently_verified";
-  operatorDisclosure: { legalEntityDetected: boolean; contactDetailsDetected: boolean; termsLinkDetected: boolean; privacyLinkDetected: boolean };
+  operatorDisclosure: { legalEntityDetected: boolean; contactDetailsDetected: boolean; termsLinkDetected: boolean; privacyLinkDetected: boolean; operatorNameCandidates: string[] };
   note: string;
 }
 
@@ -23,6 +23,7 @@ export function analyzeBusinessClaims(text: string, html = ""): BusinessClaimAss
   const contactDetailsDetected = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(normalized) || /(?:\+?\d[\d ()-]{7,}\d)/.test(normalized) || /(?:mailto:|tel:)/i.test(html);
   const termsLinkDetected = /<a\b[^>]*(?:href=["'][^"']*(?:terms|conditions|legal)[^"']*["']|>[^<]*(?:terms of service|terms and conditions|terms)[^<]*<)/i.test(html);
   const privacyLinkDetected = /<a\b[^>]*(?:href=["'][^"']*privacy[^"']*["']|>[^<]*privacy policy[^<]*<)/i.test(html);
+  const operatorNameCandidates = Array.from(normalized.matchAll(/(?:operated by|owned by|registered as)\s+([^.;,]{3,80})/gi), match => match[1].trim()).filter(value => /limited|ltd|llc|inc|plc|gmbh|corporation/i.test(value)).slice(0, 3);
 
   const add = (code: string, title: string, severity: Finding["severity"], points: number,
     evidence: string, recommendation: string) => {
@@ -99,7 +100,7 @@ export function analyzeBusinessClaims(text: string, html = ""): BusinessClaimAss
     findings,
     payoutVerification: "not_verified_from_public_page",
     operatorVerification: "not_independently_verified",
-    operatorDisclosure: { legalEntityDetected, contactDetailsDetected, termsLinkDetected, privacyLinkDetected },
+    operatorDisclosure: { legalEntityDetected, contactDetailsDetected, termsLinkDetected, privacyLinkDetected, operatorNameCandidates },
     note: "Public page content cannot prove that a platform pays users. Verify payouts independently and never pay money to unlock wages or withdrawals."
   };
 }
