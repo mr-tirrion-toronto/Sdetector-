@@ -4,6 +4,7 @@ import { lookupThreatIntelligence } from "../../src/threat-intel";
 import { investigateDomain } from "../../src/domain-intel";
 import { inspectLiveDomain, type TlsData } from "../../src/live-inspection";
 import { getAuthenticatedUser } from "../../src/auth";
+import { buildIndependentEvidence } from "../../src/independent-evidence";
 
 interface Env {
   DATABASE_URL?: string;
@@ -208,6 +209,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         infrastructure: null, registration: null, campaign: null, related: [] };
 
   const liveInspection = liveInspectionResult.status === "fulfilled" ? liveInspectionResult.value : null;
+  const pageData = liveInspection?.websiteContent.data;
+  const independentEvidence = buildIndependentEvidence({
+    hostname: result.hostname,
+    pageTitle: pageData?.title,
+    operatorNameCandidates: pageData?.operatorDisclosure.operatorNameCandidates,
+    relatedDomains: domainIntelligence.related,
+    campaignBrand: domainIntelligence.campaign?.brand,
+    campaignTotal: domainIntelligence.campaign?.total,
+    certificateNames: liveInspection?.tls.data?.subjectAltNames
+  });
   if (!cachedTls && liveInspection?.tls.status === "available" && liveInspection.tls.data) {
     try {
       await sql`INSERT INTO domain_tls_cache (hostname, tls_data, checked_at, expires_at, updated_at)
@@ -304,7 +315,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     limitations,
     threatIntelligence,
     domainIntelligence,
-    liveInspection
+    liveInspection,
+    independentEvidence
   };
 
   let saved = false;
