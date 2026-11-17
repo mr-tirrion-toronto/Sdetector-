@@ -3,6 +3,15 @@ import { analyzeBusinessClaims } from "../src/business-claims";
 
 describe("analyzeBusinessClaims", () => {
 
+  it("treats prepaid customer-funds language as an unverified operator claim, not proof of fraud", () => {
+    const result = analyzeBusinessClaims("Foreigners pay our platform upfront. Their prepaid balance is held by the company before the chat begins.");
+    expect(result.signals).toContain("operator_claims_prepaid_customer_funds");
+    const finding = result.findings.find(item => item.code === "BUSINESS_PREPAID_CUSTOMER_FUNDS_CLAIM");
+    expect(finding?.severity).toBe("info");
+    expect(finding?.points).toBe(0);
+    expect(finding?.evidence).toContain("has not verified payment processor records");
+  });
+
   it("extracts only explicitly disclosed legal-operator name candidates", () => {
     const result = analyzeBusinessClaims("This platform is operated by Example Chat Limited. Get paid to chat.", "");
     expect(result.operatorDisclosure.operatorNameCandidates).toContain("Example Chat Limited");
