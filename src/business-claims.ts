@@ -78,6 +78,14 @@ export function analyzeBusinessClaims(text: string, html = ""): BusinessClaimAss
       "Check whether earnings come from a real service sold to independent customers rather than deposits or recruitment by new members.");
   }
 
+  const prepaidCustomerFunds = /(customers?|foreigners?|clients?).{0,90}(pay|prepay|prepaid|upfront).{0,90}(before|upfront|connect|conversation|service)|(prepaid balance|already-paid customers?|already-paid foreigners?|money is held by the company|funds are held by the company|money is already secured)/i.test(normalized);
+  if (prepaidCustomerFunds) {
+    signals.push("operator_claims_prepaid_customer_funds");
+    add("BUSINESS_PREPAID_CUSTOMER_FUNDS_CLAIM", "Operator claims customer payments are collected before the service", "info", 0,
+      "The public page claims customers pay in advance or that a prepaid balance is held before workers provide a service. This is an operator statement; the scanner has not verified payment processor records, escrow arrangements, fund segregation or actual settlement to workers.",
+      "Request written payment-flow and refund terms. Verify the payment processor and worker settlement process independently, and confirm that workers are never asked to deposit their own money to receive wages.");
+  }
+
   const payoutMarketing = /(instant payouts?|withdraw instantly|paid out|\$[\d,.]+\s*(paid|payout)|\b\d[\d,.]*\s*(members|users)\b|payment proof|proof of payment|success stor(y|ies)|testimonials?)/i.test(normalized);
   if (payoutMarketing) {
     signals.push("self_published_payout_or_social_proof_claim");
