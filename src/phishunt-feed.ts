@@ -166,6 +166,16 @@ export async function syncPhishuntFeed(sql: any): Promise<void> {
     const indicators = await makePhishuntIndicators(body);
     if (!indicators.length) throw new Error("EMPTY_OR_UNRECOGNIZED_FEED");
     await upsertIndicators(sql, indicators);
+    // A successful full feed response is an authoritative snapshot. Remove entries
+    // absent from this snapshot so withdrawn indicators do not remain matchable
+    // for the full 48-hour fallback TTL.
+    const currentHashes = JSON.stringify(indicators.map(item => ({ indicator_hash: item.indicator_hash })));
+    await sql`DELETE FROM threat_indicators
+      WHERE source = 'phishunt'
+        AND indicator_hash NOT IN (
+          SELECT current.indicator_hash
+          FROM jsonb_to_recordset(${currentHashes}::jsonb) AS current(indicator_hash TEXT)
+        )`;
     await sql`DELETE FROM threat_indicators WHERE expires_at < NOW() - INTERVAL '7 days'`;
     await setFeedStatus(sql, "ok", {
       etag: response.headers.get("etag"),
