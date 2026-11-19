@@ -41,7 +41,7 @@
 
 ## Accounts and API keys
 - Signup, login and logout.
-- Salted PBKDF2-SHA256 password hashes and secure HttpOnly session cookies.
+- Salted PBKDF2-SHA256 password hashes (100,000 iterations, the Cloudflare Workers WebCrypto maximum) and secure HttpOnly session cookies.
 - Private per-user scan history.
 - Create, list and revoke API keys. The raw key is shown once; only its hash is stored.
 - Up to 10 active API keys per account.
