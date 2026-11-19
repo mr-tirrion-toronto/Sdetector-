@@ -173,6 +173,14 @@ function renderResult(data){
     (relationship.certificateCoNames?.length?'<div class="feed-row"><span>Other names on same certificate</span><b>'+escapeHtml(relationship.certificateCoNames.join(', '))+'</b></div>':'')+
     '<p class="feed-note">'+escapeHtml(relationship.interpretation||'Technical relationships are leads only and do not prove common ownership.')+'</p>'+
     (Array.isArray(evidence.limitations)?'<p class="feed-note">'+evidence.limitations.map(escapeHtml).join(' ')+'</p>':'')+'</div>';
+  const legitimacy=data.legitimacyAssessment||{label:'Legitimacy not verified',summary:'There is not enough independent evidence to establish the operator identity.',checks:[],notVerified:[]};
+  const legitimacyPanel='<div class="feed-panel"><strong>Legitimacy assessment · '+escapeHtml(legitimacy.label)+'</strong>'+
+    '<p class="feed-note">'+escapeHtml(legitimacy.summary)+'</p>'+
+    '<div class="feed-row"><span>Positive observations</span><b>'+numberText(legitimacy.positiveObservations||0)+'</b></div>'+
+    '<div class="feed-row"><span>Warnings</span><b>'+numberText(legitimacy.warnings||0)+'</b></div>'+
+    (Array.isArray(legitimacy.checks)?legitimacy.checks.map(check=>'<div class="feed-row"><span>'+escapeHtml(check.label)+' · '+escapeHtml(check.status.replace(/_/g,' '))+'</span><p>'+escapeHtml(check.evidence)+' <small>Source: '+escapeHtml(check.source)+'</small></p></div>').join(''):'')+
+    (Array.isArray(legitimacy.notVerified)?'<p class="feed-note">Still not verified: '+legitimacy.notVerified.map(escapeHtml).join(' · ')+'</p>':'')+
+    '<p class="feed-note">A positive technical observation is not a legitimacy certificate. Manual registry, operator and payout checks may still be required.</p></div>';
   const brand=data.brandAssessment||{matches:[],limitations:[]};
   const dna=data.scamDna||{};
   const graph=data.relationshipGraph||{nodes:[],edges:[],limitations:[]};
@@ -225,7 +233,7 @@ function renderResult(data){
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
     domainPanel+
-    livePanel+evidencePanel+advancedPanel+
+    livePanel+evidencePanel+legitimacyPanel+advancedPanel+
     '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
     (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No configured warning patterns or known-feed matches were found. This is not a safety guarantee.</div>')+
     '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
