@@ -16,7 +16,9 @@ try{
  if(!data)throw new Error('No report data was found. Return to the scanner and generate a new report.');
  const findings=Array.isArray(data.findings)?data.findings:[];
  const assessment=labels[data.assessmentStatus]||'Preliminary assessment';
- const level=String(data.riskLevel||'unknown').toUpperCase();
+ const riskCategory=String(data.riskCategory||(data.assessmentStatus==='known_threat_detected'?'confirmed_threat':Number(data.score)>=70?'critical':Number(data.score)>=40?'high':Number(data.score)>=20?'suspicious':'low'));
+ const riskLabels={confirmed_threat:'CONFIRMED THREAT',critical:'CRITICAL RISK',high:'HIGH RISK',suspicious:'SUSPICIOUS',low:'LOW RISK'};
+ const level=riskLabels[riskCategory]||'RISK UNDER REVIEW';
  const riskText=data.assessmentStatus==='business_claims_need_verification'?'The page contains business, earnings or parked-domain signals that require independent verification. No payout or company legitimacy has been established.':data.assessmentStatus==='known_threat_detected'?'A matching indicator was found in a configured threat-intelligence source. Do not visit or interact with this website.':data.assessmentStatus==='no_known_threat_match'?'No exact match was found in the configured threat feeds. This does not prove the website is safe.':'The scanner found URL-pattern evidence only. This assessment is not a definitive verdict.';
  const feed=data.threatIntelligence||{};
  const di=data.domainIntelligence||{};
