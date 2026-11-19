@@ -25,7 +25,7 @@
   <header>
     <a class="brand" href="/" aria-label="Scam Detector home"><span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8 20 6v5.2c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3.2Z"/><path d="m8.7 12 2.1 2.1 4.6-4.7"/></svg></span><span>SCAM DETECTOR<small>WEBSITE RISK INTELLIGENCE</small></span></a>
     <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
-    <nav class="nav" id="main-nav" aria-label="Main navigation"><a href="#scanner">URL Scanner</a><a href="/dashboard.html">Dashboard</a><a href="/account.html">Account & API</a><a href="/monitoring.html">Monitoring</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
+    <nav class="nav" id="main-nav" aria-label="Main navigation"><a href="#scanner">URL Scanner</a><a href="/assistant.html">AI Assistant</a><a href="/dashboard.html">Dashboard</a><a href="/account.html">Account & API</a><a href="/monitoring.html">Monitoring</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
     <div class="status-pill" id="service-status"><i class="dot"></i> CHECKING SERVICE</div>
   </header>
   <section class="hero">
@@ -238,8 +238,9 @@ function renderResult(data){
     '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
     (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No configured warning patterns or known-feed matches were found. This is not a safety guarantee.</div>')+
     '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
-    '<div class="result-actions"><button class="secondary" id="print-report" type="button">Print / Save as PDF</button><button class="secondary" id="copy-summary" type="button">Copy summary</button></div>';
+    '<div class="result-actions"><button class="secondary" id="ask-ai" type="button">Ask AI about this scan</button><button class="secondary" id="print-report" type="button">Print / Save as PDF</button><button class="secondary" id="copy-summary" type="button">Copy summary</button></div>';
   resultEl.style.display='block';
+  document.querySelector('#ask-ai').addEventListener('click',()=>{window.location.href='/assistant.html?scan_id='+encodeURIComponent(data.scanId);});
   document.querySelector('#print-report').addEventListener('click',()=>{sessionStorage.setItem('scamDetectorReport',JSON.stringify({...data,scannedAt:new Date().toISOString()}));window.location.href='/report.html';});
   document.querySelector('#copy-summary').addEventListener('click',async()=>{
     const summary='Scam Detector report\nWebsite: '+data.hostname+'\nScore: '+data.score+'/100\nRisk category: '+riskBadgeText+'\nAssessment status: '+assessment+'\nThreat intelligence: '+intelLabel+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No configured warning patterns or known-feed matches found.')+'\n\nA missing match is not proof that a website is safe.';
