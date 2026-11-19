@@ -25,7 +25,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const token = await createSession(sql, user.id);
     return json({ user: { id: user.id, email: user.email }, message: "Signed in." }, 200, { "set-cookie": sessionCookie(token) });
   } catch (error) {
-    console.error("ACCOUNT_LOGIN_FAILED", stage, error instanceof Error ? error.name : "UnknownError");
-    return json({ error: "Sign in is temporarily unavailable.", code: "ACCOUNT_LOGIN_" + stage.toUpperCase() }, 503);
+    const errorType = error instanceof Error ? error.name : "UnknownError";
+    console.error("ACCOUNT_LOGIN_FAILED", stage, errorType, error instanceof Error ? error.message : "");
+    return json({ error: "Sign in is temporarily unavailable.", code: "ACCOUNT_LOGIN_" + stage.toUpperCase(), errorType }, 503);
   }
 };
