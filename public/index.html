@@ -173,6 +173,21 @@ function renderResult(data){
     (relationship.certificateCoNames?.length?'<div class="feed-row"><span>Other names on same certificate</span><b>'+escapeHtml(relationship.certificateCoNames.join(', '))+'</b></div>':'')+
     '<p class="feed-note">'+escapeHtml(relationship.interpretation||'Technical relationships are leads only and do not prove common ownership.')+'</p>'+
     (Array.isArray(evidence.limitations)?'<p class="feed-note">'+evidence.limitations.map(escapeHtml).join(' ')+'</p>':'')+'</div>';
+  const brand=data.brandAssessment||{matches:[],limitations:[]};
+  const dna=data.scamDna||{};
+  const graph=data.relationshipGraph||{nodes:[],edges:[],limitations:[]};
+  const change=data.changeMonitoring||{};
+  const advancedPanel='<div class="feed-panel"><strong>Scam DNA · '+escapeHtml(dna.familyLabel||'Not classified')+'</strong>'+
+    '<div class="feed-row"><span>Fingerprint</span><b>'+escapeHtml(dna.fingerprint?dna.fingerprint.slice(0,24)+'…':'Not available')+'</b></div>'+
+    '<div class="feed-row"><span>Brand impersonation matches</span><b>'+numberText(brand.matches?.length||0)+'</b></div>'+
+    (Array.isArray(brand.matches)&&brand.matches.length?brand.matches.map(match=>'<div class="feed-row"><span>'+escapeHtml(match.brand)+' · '+escapeHtml(match.matchType.replace(/_/g,' '))+'</span><b>'+escapeHtml(match.confidence)+' confidence</b><p>'+escapeHtml(match.evidence)+' Official domains: '+escapeHtml(match.officialDomains.join(', '))+'</p></div>').join(''):'<div class="feed-row"><span>No match in the current curated brand registry. This is not proof that the site is genuine.</span></div>')+
+    '<p class="feed-note">'+escapeHtml(dna.interpretation||'Scam-family classification unavailable.')+'</p>'+
+    '<div class="feed-row"><span>Tracked change status</span><b>'+escapeHtml(String(change.status||'history unavailable').toUpperCase())+'</b></div>'+
+    (change.changedFields?.length?'<div class="feed-row"><span>Changed fields</span><b>'+escapeHtml(change.changedFields.join(', '))+'</b></div>':'')+
+    '<p class="feed-note">'+escapeHtml(change.note||'Change history requires the advanced-intelligence migration and an earlier snapshot.')+'</p>'+
+    '<div class="feed-row"><span>Relationship graph</span><b>'+numberText(graph.nodes?.length||0)+' nodes · '+numberText(graph.edges?.length||0)+' edges</b></div>'+
+    (Array.isArray(graph.edges)&&graph.edges.length?graph.edges.slice(0,12).map(edge=>'<div class="feed-row"><span>'+escapeHtml(edge.from.replace(/^(host|domain|ip|cert|threat|campaign|brand):/,''))+' → '+escapeHtml(edge.to.replace(/^(host|domain|ip|cert|threat|campaign|brand):/,''))+'</span><b>'+escapeHtml(edge.type.replace(/_/g,' '))+' · '+escapeHtml(edge.confidence)+'</b><p>'+escapeHtml(edge.interpretation)+'</p></div>').join(''):'<div class="feed-row"><span>No supported relationships were returned.</span></div>')+
+    '<p class="feed-note">Shared infrastructure, certificates and provider associations do not prove common ownership. Review each relationship before drawing conclusions.</p></div>';
   const neutralAssessment=['business_claims_need_verification','no_known_threat_match','threat_intel_partial','threat_intel_unavailable','insufficient_evidence'].includes(assessment);
   const category=String(data.riskCategory||(knownThreat?'confirmed_threat':Number(data.score)>=70?'critical':Number(data.score)>=40?'high':Number(data.score)>=20?'suspicious':'low'));
   const riskLabels={confirmed_threat:'CONFIRMED THREAT',critical:'CRITICAL RISK',high:'HIGH RISK',suspicious:'SUSPICIOUS',low:'LOW RISK'};
@@ -210,7 +225,7 @@ function renderResult(data){
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
     domainPanel+
-    livePanel+evidencePanel+
+    livePanel+evidencePanel+advancedPanel+
     '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
     (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No configured warning patterns or known-feed matches were found. This is not a safety guarantee.</div>')+
     '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
