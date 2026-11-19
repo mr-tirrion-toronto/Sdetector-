@@ -41,7 +41,7 @@ header{height:76px;border-bottom:1px solid #ffffff16;display:flex;align-items:ce
 <div class="checks" id="password-checks">
 <span class="check" data-check="length">At least 12 characters</span><span class="check" data-check="long">16+ characters is better</span>
 <span class="check" data-check="mix">Uppercase and lowercase</span><span class="check" data-check="number">At least one number</span>
-<span class="check" data-check="symbol">A symbol or punctuation</span><span class="check" data-check="variety">Avoid repeats and common patterns</span>
+<span class="check" data-check="symbol">A symbol or punctuation</span><span class="check" data-check="variety">Avoid common passwords and patterns</span>
 </div>
 </div></div>
 <div class="field hidden" id="confirm-wrap"><label for="confirm-password">Confirm password</label><div class="input-action"><input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" maxlength="128" placeholder="Type the password again"><button class="text-button" type="button" data-toggle="confirm-password">Show</button></div><div class="hint" id="confirm-hint">Re-enter the same password to avoid typing mistakes.</div></div>
@@ -93,7 +93,7 @@ function updateStrength(){
  const p=$("password").value,mail=$("email").value.toLowerCase().split("@")[0],has=(r)=>r.test(p);
  const checks={length:p.length>=12,long:p.length>=16,mix:has(/[a-z]/)&&has(/[A-Z]/),number:has(/[0-9]/),symbol:has(/[^A-Za-z0-9]/),variety:!/(.)\1{3,}/.test(p)&&!/(1234|abcd|qwerty|password|letmein)/i.test(p)&&!(mail.length>=4&&p.toLowerCase().includes(mail))};
  document.querySelectorAll("[data-check]").forEach(el=>el.classList.toggle("pass",!!checks[el.dataset.check]));
- let score=0;if(checks.length)score++;if(checks.long)score++;if(checks.mix)score++;if(checks.number)score++;if(checks.symbol)score++;if(checks.variety)score++;
+ let score=0;if(checks.length)score++;if(checks.long)score++;if(checks.mix)score++;if(checks.number)score++;if(checks.symbol)score++;if(checks.variety)score++;if(!checks.variety)score=Math.min(score,2);
  const label=p.length===0?"Not entered":p.length<12?"Too short":score<=2?"Weak":score<=3?"Fair":score<=4?"Good":"Strong";
  $("strength-label").textContent=label;$("strength-fill").style.width=(p.length?Math.max(8,score/6*100):0)+"%";
  $("strength-fill").style.background=label==="Strong"?"var(--mint)":label==="Good"?"var(--blue)":label==="Fair"?"var(--amber)":"var(--red)";
