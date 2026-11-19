@@ -9,6 +9,7 @@ import { detectBrandImpersonation } from "../../src/brand-intelligence";
 import { buildScamDna } from "../../src/scam-dna";
 import { buildRelationshipGraph } from "../../src/relationship-graph";
 import { buildWebsiteSnapshot, compareSnapshots, type WebsiteSnapshot } from "../../src/change-monitoring";
+import { assessLegitimacy } from "../../src/legitimacy-assessment";
 
 interface Env {
   DATABASE_URL?: string;
@@ -315,6 +316,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     ? await compareSnapshots(websiteSnapshot, previousSnapshot)
     : {status:"history_unavailable" as const,fingerprint:null,previousFingerprint:null,changedFields:[],previousCheckedAt:null,checkedAt:new Date().toISOString(),note:"Change history is not available until the advanced-intelligence database migration is applied."};
   changeMonitoring.previousCheckedAt = previousCheckedAt;
+  const legitimacyAssessment = assessLegitimacy({
+    brands: brandAssessment, live: liveInspection, threat: threatIntelligence,
+    findings, independentEvidence
+  });
   let assessmentStatus:
     | "known_threat_detected"
     | "no_known_threat_match"
@@ -372,7 +377,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     scamDna,
     relationshipGraph,
     websiteSnapshot,
-    changeMonitoring
+    changeMonitoring,
+    legitimacyAssessment
   };
 
   let saved = false;
@@ -413,12 +419,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       const snapshotFingerprint = changeMonitoring.fingerprint;
       await sql`INSERT INTO scan_intelligence
         (scan_id, hostname, dna_hash, dna_family, snapshot_fingerprint, snapshot,
-         scam_dna, brand_assessment, relationship_graph, change_summary, created_at)
+         scam_dna, brand_assessment, legitimacy_assessment, relationship_graph, change_summary, created_at)
         VALUES
         (${scanId}, ${result.hostname}, ${scamDna.fingerprint}, ${scamDna.family},
          ${snapshotFingerprint}, ${JSON.stringify(websiteSnapshot)}::jsonb,
          ${JSON.stringify(scamDna)}::jsonb, ${JSON.stringify(brandAssessment)}::jsonb,
-         ${JSON.stringify(relationshipGraph)}::jsonb, ${JSON.stringify(changeMonitoring)}::jsonb, NOW())`;
+         ${JSON.stringify(legitimacyAssessment)}::jsonb, ${JSON.stringify(relationshipGraph)}::jsonb,
+         ${JSON.stringify(changeMonitoring)}::jsonb, NOW())`;
       intelligenceSaved = true;
     } catch (error) {
       console.error("SCAN_INTELLIGENCE_PERSISTENCE_FAILED", error instanceof Error ? error.name : "UnknownError");
