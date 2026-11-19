@@ -267,6 +267,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const livePoints = (liveInspection?.findings ?? []).reduce((total, finding) => total + finding.points, 0);
   const score = confirmedThreat ? 100 : Math.min(100, Math.max(result.score, Math.min(100, externalScore)) + livePoints);
   const riskLevel = score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "guarded" : "low";
+  const riskCategory = confirmedThreat ? "confirmed_threat" : score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "suspicious" : "low";
   let assessmentStatus:
     | "known_threat_detected"
     | "no_known_threat_match"
@@ -310,6 +311,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     findings,
     score,
     riskLevel,
+    riskCategory,
     assessmentStatus,
     confidence: confirmedThreat ? "high" : domainIntelligence.assessment && domainIntelligence.assessment.score >= 20 ? "moderate" : "limited",
     limitations,
