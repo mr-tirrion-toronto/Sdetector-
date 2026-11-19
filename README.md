@@ -55,6 +55,7 @@ Open the account workspace at `/account.html`.
 - After a scan while signed in, choose **Ask AI about this scan** to ask evidence-grounded follow-up questions.
 - `POST /api/ai/assistant` uses the OpenAI Responses API. It retrieves only scans owned by the authenticated account and applies a 12-request-per-10-minute per-account limit.
 - `/openapi.json` publishes the OpenAPI 3.1 contract for external apps and custom GPT Actions. API callers use their own Scam Detector `sd_live_...` account key; they never receive the server's OpenAI credential.
+- `POST /mcp` exposes the investigation, AI assistant and health-check tools through the Model Context Protocol (Streamable HTTP), for compatible AI clients. Investigation and AI tools require a Scam Detector account API key.
 - Configure the existing OpenAI Platform key as the Cloudflare Pages production secret `OPENAI_API_KEY`. Never place it in frontend code, GitHub, or API requests from end users. The assistant uses `store: false` for Responses API requests.
 
 See [AI API integration guide](docs/AI_API.md) for setup and examples. ChatGPT does not automatically connect to an external API; a custom GPT Action or an explicitly configured connector must be authorized.
