@@ -55,14 +55,14 @@ export function detectBrandImpersonation(input:{hostname:string;pageTitle?:strin
   const host=input.hostname.toLowerCase().replace(/\.$/,"");
   const registrable=getDomain(host)||host;
   const hostParts=host.split(".");
-  const searchable=hostParts.slice(0,-1).map(clean).filter(Boolean);
+  const searchable=hostParts.slice(0,-1).flatMap(part=>part.split(/[-_]+/).map(clean).filter(Boolean));
   const title=clean(input.pageTitle||"");
   const authContext=(input.indicators||[]).some(x=>["password_input","form_detected","credential_verification_language"].includes(x));
   const matches:BrandMatch[]=[];
   for(const brand of BRANDS){
     if(isOfficial(host,brand.domains)) continue;
     const aliases=brand.aliases.map(clean);
-    const exact=searchable.some(part=>aliases.some(alias=>part.includes(alias)));
+    const exact=searchable.some(part=>aliases.some(alias=>part===alias||(alias.length>=4&&part.includes(alias))));
     const typo=searchable.some(part=>aliases.some(alias=>alias.length>=6&&part.length>=alias.length-2&&part.length<=alias.length+2&&distance(part,alias)<=1));
     const titleHit=authContext&&brand.aliases.some(alias=>title.includes(clean(alias)));
     const punycodeContext=hostParts.some(part=>part.startsWith("xn--"))&&titleHit;
