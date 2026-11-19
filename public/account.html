@@ -1,40 +1,165 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07111f"><title>Account & API Keys · Scam Detector</title>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<meta name="description" content="Secure Scam Detector account, private scan history and API key management.">
+<title>Account access · Scam Detector</title>
 <style>
-:root{color-scheme:dark;--bg:#07111f;--panel:#102238;--line:#29435b;--text:#eff6ff;--muted:#9db0c6;--mint:#69f0c1;--red:#ff8292;--amber:#ffc66d}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% -10%,#153a50 0,transparent 38%),var(--bg);color:var(--text);font:14px/1.6 Inter,system-ui,sans-serif}.shell{width:min(1000px,calc(100% - 30px));margin:auto}header{height:72px;border-bottom:1px solid #ffffff18;display:flex;justify-content:space-between;align-items:center}.brand{font-weight:900;letter-spacing:.06em}.brand span{color:var(--mint)}a{color:var(--mint);text-decoration:none}.nav{display:flex;gap:18px;font-size:12px;color:var(--muted)}.intro{padding:38px 0 24px}.eyebrow{font-size:10px;letter-spacing:.18em;color:var(--mint);font-weight:850}.intro h1{font-size:34px;letter-spacing:-.04em;margin:7px 0}.intro p{color:var(--muted);margin:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.panel{background:#0d1b2b;border:1px solid var(--line);border-radius:17px;padding:20px}.panel h2{font-size:16px;margin:0 0 14px}.tabs{display:flex;gap:8px;margin-bottom:17px}.tab,.btn{border:1px solid var(--line);background:#142b41;color:var(--text);border-radius:9px;padding:9px 13px;cursor:pointer;font-weight:750}.tab.active,.btn.primary{background:var(--mint);color:#062319;border-color:var(--mint)}label{display:block;font-size:11px;color:#d5e3f1;font-weight:750;margin:12px 0 6px}input{width:100%;background:#071321;border:1px solid #35506a;border-radius:9px;padding:12px;color:white;font:inherit}input:focus{outline:2px solid #69f0c155;border-color:var(--mint)}.btn{margin-top:14px}.btn:disabled{opacity:.55;cursor:wait}.muted{color:var(--muted);font-size:11px}.message{min-height:22px;color:var(--amber);font-size:12px;margin-top:10px}.hidden{display:none!important}.key{background:#071321;border:1px solid #38536d;border-radius:10px;padding:12px;margin-top:10px;overflow-wrap:anywhere}.key strong{display:block;font-size:12px}.key small{display:block;color:var(--muted);font-size:10px}.key-actions{display:flex;gap:8px;flex-wrap:wrap}.danger{color:var(--red)}.scan{border-top:1px solid #ffffff15;padding:12px 0}.scan:first-child{border:0}.scan strong{display:block}.scan small{color:var(--muted)}.one-time{border:1px solid #ffc66d66;background:#ffc66d10;padding:13px;border-radius:10px;margin-top:12px}.code{font:12px ui-monospace,monospace;overflow-wrap:anywhere;color:#b8ffe4}.footer{padding:28px 0;color:#71869d;font-size:10px}@media(max-width:720px){.grid{grid-template-columns:1fr}.intro h1{font-size:28px}.nav{gap:10px;font-size:10px}}
-</style></head><body><div class="shell">
-<header><a class="brand" href="/">SCAM <span>DETECTOR</span></a><nav class="nav"><a href="/">Scanner</a><a href="/dashboard.html">Dashboard</a><a href="/account.html">Account</a><a href="/monitoring.html">Monitoring</a></nav></header>
-<section class="intro"><div class="eyebrow">PERSONAL SECURITY WORKSPACE</div><h1>Account & API access</h1><p>Manage your account, private scan history and API credentials.</p></section>
-<div id="auth-view" class="grid">
-<section class="panel"><div class="tabs"><button class="tab active" id="login-tab">Sign in</button><button class="tab" id="register-tab">Create account</button></div>
-<form id="auth-form"><label for="email">Email address</label><input id="email" type="email" autocomplete="email" maxlength="254" required><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required><p class="muted" id="password-hint">Use at least 12 characters.</p><button class="btn primary" id="auth-submit">Sign in</button></form><div class="message" id="auth-message" role="status"></div></section>
-<section class="panel"><h2>Your account includes</h2><p class="muted">Private scan history across devices, API keys for your applications, and the ability to revoke credentials instantly.</p><p class="muted">Passwords are stored as salted PBKDF2 hashes. Session cookies are HttpOnly, Secure and SameSite=Strict. API keys are shown only once and stored as hashes.</p><p class="muted">Use a unique password. Do not reuse your email password or share your API key.</p></section>
+:root{color-scheme:dark;--bg:#07111f;--panel:#0e1d2d;--panel2:#12283d;--line:#29445c;--text:#eff6ff;--muted:#9db0c6;--mint:#69f0c1;--amber:#ffc66d;--red:#ff8292;--blue:#83baff}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 80% -10%,#153a50 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.6 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--mint);text-decoration:none}button,input{font:inherit}.shell{width:min(1080px,calc(100% - 36px));margin:auto}
+header{height:76px;border-bottom:1px solid #ffffff16;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{font-weight:900;letter-spacing:.06em;color:var(--text)}.brand span{color:var(--mint)}.nav{display:flex;align-items:center;gap:22px;color:var(--muted);font-size:13px}.nav a[aria-current=page],.nav a:hover{color:var(--mint)}.menu-toggle{display:none;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:8px 11px}
+.intro{padding:48px 0 28px;max-width:720px}.eyebrow{font-size:10px;letter-spacing:.2em;color:var(--mint);font-weight:850}.intro h1{font-size:clamp(34px,5vw,48px);letter-spacing:-.055em;line-height:1.08;margin:10px 0}.intro p{color:var(--muted);font-size:15px;margin:0}
+.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:16px;align-items:start}.panel{background:linear-gradient(145deg,#11263a,#0d1b2b);border:1px solid var(--line);border-radius:20px;padding:24px;box-shadow:0 20px 60px #0002}.panel h2{font-size:18px;margin:0 0 14px;letter-spacing:-.02em}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:5px;border:1px solid #ffffff12;border-radius:13px;background:#071522;margin-bottom:22px}.tab{border:0;border-radius:9px;padding:11px 12px;background:transparent;color:var(--muted);font-weight:800;cursor:pointer}.tab.active{background:var(--mint);color:#062319}.field{margin:16px 0}.field label{display:block;font-size:12px;color:#d5e3f1;font-weight:800;margin-bottom:7px}.field input{width:100%;background:#071321;border:1px solid #35506a;border-radius:11px;padding:14px 15px;color:white;outline:none;min-height:50px}.field input:focus{border-color:var(--mint);box-shadow:0 0 0 3px #69f0c11b}.field input[aria-invalid=true]{border-color:var(--red)}.input-action{display:flex;gap:8px}.input-action input{flex:1;min-width:0}.text-button{border:1px solid var(--line);background:#142b41;color:#c9d9e9;border-radius:10px;padding:0 13px;font-size:12px;font-weight:750;cursor:pointer}.hint{font-size:11px;color:var(--muted);margin:7px 0 0}.strength{margin:10px 0 0}.strength-track{height:6px;background:#24374a;border-radius:99px;overflow:hidden}.strength-fill{height:100%;width:0;background:var(--red);transition:width .2s,background .2s}.strength-caption{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);margin-top:6px}.checks{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:9px}.check{font-size:10px;color:#8298ad}.check.pass{color:var(--mint)}.check:before{content:"○";margin-right:6px}.check.pass:before{content:"✓"}
+.primary{width:100%;border:0;border-radius:11px;padding:14px 18px;background:var(--mint);color:#062319;font-weight:900;cursor:pointer;min-height:52px;margin-top:12px}.primary:disabled{opacity:.6;cursor:wait}.message{min-height:24px;margin-top:12px;font-size:12px;color:var(--amber)}.message.error{color:var(--red)}.message.success{color:var(--mint)}.hidden{display:none!important}.side-list{display:grid;gap:14px}.side-item{display:flex;gap:12px;align-items:flex-start}.side-icon{width:34px;height:34px;border-radius:10px;background:#69f0c116;color:var(--mint);display:grid;place-items:center;flex:0 0 auto;font-weight:900}.side-item strong{display:block;font-size:13px}.side-item p{margin:3px 0 0;color:var(--muted);font-size:11px}.security-note{margin-top:18px;padding:13px;border:1px solid #69f0c133;background:#69f0c10a;border-radius:12px;color:#b6d8d0;font-size:11px}.workspace{display:grid;gap:15px}.workspace-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.code{font:12px ui-monospace,SFMono-Regular,monospace;overflow-wrap:anywhere;color:#b8ffe4}.key{background:#071321;border:1px solid #38536d;border-radius:11px;padding:13px;margin-top:10px;overflow-wrap:anywhere}.key strong{display:block;font-size:13px}.key small{display:block;color:var(--muted);font-size:10px}.key-actions{display:flex;gap:8px;flex-wrap:wrap}.secondary,.danger{border:1px solid var(--line);background:#142b41;color:#dbe9f7;border-radius:9px;padding:9px 12px;font-size:11px;font-weight:800;cursor:pointer}.danger{color:var(--red)}.scan{border-top:1px solid #ffffff15;padding:12px 0}.scan:first-child{border-top:0}.scan strong{display:block;font-size:13px}.scan small{color:var(--muted);font-size:10px}.empty{color:var(--muted);font-size:12px;padding:12px 0}.one-time{border:1px solid #ffc66d66;background:#ffc66d10;padding:13px;border-radius:10px;margin-top:12px}.footer{padding:32px 0;color:#71869d;font-size:10px}
+@media(max-width:760px){.shell{width:min(100% - 26px,1080px)}header{height:68px}.menu-toggle{display:block}.nav{display:none;position:absolute;z-index:5;top:68px;left:13px;right:13px;padding:14px;background:#102238;border:1px solid var(--line);border-radius:13px;box-shadow:0 15px 40px #0008;flex-direction:column;align-items:stretch;gap:0}.nav.open{display:flex}.nav a{padding:11px 9px}.intro{padding:34px 0 22px}.layout,.workspace-grid{grid-template-columns:1fr}.panel{padding:19px}.checks{grid-template-columns:1fr 1fr}}
+@media(max-width:380px){.checks{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="shell">
+<header>
+<a class="brand" href="/">SCAM <span>DETECTOR</span></a>
+<button class="menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+<nav class="nav" id="site-nav" aria-label="Main navigation">
+<a href="/">Scanner</a><a href="/dashboard">Dashboard</a><a href="/account" aria-current="page">Account</a><a href="/monitoring">Monitoring</a>
+</nav>
+</header>
+<section class="intro"><div class="eyebrow">YOUR SECURITY WORKSPACE</div><h1>Account access</h1><p>Sign in to keep your investigations private, manage API credentials and monitor websites across sessions.</p></section>
+<div id="auth-view" class="layout">
+<section class="panel">
+<div class="tabs" role="tablist" aria-label="Account action">
+<button class="tab active" id="login-tab" type="button" role="tab" aria-selected="true">Sign in</button>
+<button class="tab" id="register-tab" type="button" role="tab" aria-selected="false">Create account</button>
 </div>
-<div id="workspace" class="hidden">
-<div class="grid">
-<section class="panel"><h2>Signed-in account</h2><div id="user-email" class="code"></div><p class="muted">Your scan history is private to this account. Guest scans are not added retroactively.</p><button class="btn" id="logout">Sign out</button></section>
-<section class="panel"><h2>Create an API key</h2><label for="key-name">Key name</label><input id="key-name" maxlength="60" placeholder="e.g. My website integration"><button class="btn primary" id="create-key">Generate API key</button><div id="new-key" class="one-time hidden"><strong>Copy this key now — it will not be shown again.</strong><div id="key-value" class="code"></div><button class="btn" id="copy-key">Copy key</button></div><div class="message" id="key-message"></div></section>
+<form id="auth-form" novalidate>
+<div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" placeholder="you@example.com" required></div>
+<div class="field"><label for="password">Password</label><div class="input-action"><input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" placeholder="Enter your password" required><button class="text-button" type="button" data-toggle="password">Show</button></div>
+<div id="password-guidance" class="hint">Enter your account password.</div>
+<div id="strength-wrap" class="strength hidden" aria-live="polite">
+<div class="strength-track"><div class="strength-fill" id="strength-fill"></div></div>
+<div class="strength-caption"><span>Password strength</span><strong id="strength-label">Not entered</strong></div>
+<div class="checks" id="password-checks">
+<span class="check" data-check="length">At least 12 characters</span><span class="check" data-check="long">16+ characters is better</span>
+<span class="check" data-check="mix">Uppercase and lowercase</span><span class="check" data-check="number">At least one number</span>
+<span class="check" data-check="symbol">A symbol or punctuation</span><span class="check" data-check="variety">Avoid repeats and common patterns</span>
 </div>
-<section class="panel" style="margin-top:15px"><h2>API keys</h2><p class="muted">Maximum 10 active keys. Revoke any key you no longer use.</p><div id="keys"><p class="muted">Loading API keys…</p></div></section>
-<section class="panel" style="margin-top:15px"><h2>Your recent scans</h2><div id="history"><p class="muted">Loading private scan history…</p></div></section>
-<section class="panel" style="margin-top:15px"><h2>API usage</h2><p class="muted">Send the key in the Authorization header. Never put API keys in browser JavaScript, public repositories or query strings.</p><div class="key"><code class="code">curl -X POST https://scam-detector-a92.pages.dev/api/scan -H "Content-Type: application/json" -H "Authorization: Bearer sd_live_YOUR_KEY" -d '{"url":"https://example.com"}'</code></div></section>
+</div></div>
+<div class="field hidden" id="confirm-wrap"><label for="confirm-password">Confirm password</label><div class="input-action"><input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" maxlength="128" placeholder="Type the password again"><button class="text-button" type="button" data-toggle="confirm-password">Show</button></div><div class="hint" id="confirm-hint">Re-enter the same password to avoid typing mistakes.</div></div>
+<button class="primary" id="auth-submit" type="submit">Sign in</button>
+</form>
+<div class="message" id="auth-message" role="status" aria-live="polite"></div>
+</section>
+<aside class="panel">
+<h2>Built for safer decisions</h2>
+<div class="side-list">
+<div class="side-item"><div class="side-icon">✓</div><div><strong>Private scan history</strong><p>Access investigations saved to your account from supported devices.</p></div></div>
+<div class="side-item"><div class="side-icon">⌘</div><div><strong>API credentials</strong><p>Create, review and revoke API keys. A new key is displayed only once.</p></div></div>
+<div class="side-item"><div class="side-icon">◎</div><div><strong>Website monitoring</strong><p>Track selected domains and review evidence when public signals change.</p></div></div>
 </div>
-<div class="footer">SCAM DETECTOR · Account security controls · Never share passwords or API keys</div></div>
+<div class="security-note">Passwords are processed using salted PBKDF2-SHA256 hashes. Session cookies are HttpOnly, Secure and SameSite=Strict. Use a unique password and never share it.</div>
+<p class="hint">Email verification and password recovery are not currently configured. Do not assume an account can be recovered through email yet.</p>
+</aside>
+</div>
+<div id="workspace" class="workspace hidden">
+<div class="workspace-grid">
+<section class="panel"><h2>Signed-in account</h2><div id="user-email" class="code"></div><p class="hint">Your scan history is private to this account. Guest scans are not added retroactively.</p><button class="secondary" id="logout" type="button">Sign out</button><div class="message" id="logout-message" role="status"></div></section>
+<section class="panel"><h2>Create an API key</h2><div class="field"><label for="key-name">Key name</label><input id="key-name" maxlength="60" placeholder="e.g. My website integration"></div><button class="primary" id="create-key" type="button">Generate API key</button><div id="new-key" class="one-time hidden"><strong>Copy this key now — it will not be shown again.</strong><div id="key-value" class="code"></div><button class="secondary" id="copy-key" type="button">Copy key</button></div><div class="message" id="key-message" role="status"></div></section>
+</div>
+<section class="panel"><h2>API keys</h2><p class="hint">Maximum 10 active keys. Revoke any key you no longer use.</p><div id="keys"><p class="empty">Loading API keys…</p></div></section>
+<section class="panel"><h2>Your recent scans</h2><div id="history"><p class="empty">Loading private scan history…</p></div></section>
+<section class="panel"><h2>API usage</h2><p class="hint">Send the key in the Authorization header. Never place API keys in browser JavaScript, public repositories or query strings.</p><div class="key"><code class="code">curl -X POST https://scam-detector-a92.pages.dev/api/scan -H "Content-Type: application/json" -H "Authorization: Bearer sd_live_YOUR_KEY" -d '{"url":"https://example.com"}'</code></div></section>
+</div>
+<div class="footer">SCAM DETECTOR · Account security · Never share passwords or API keys</div>
+</div>
 <script>
-const $=id=>document.getElementById(id);let mode="login";let currentUser=null;
-function message(id,text){$(id).textContent=text}
-function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-$("login-tab").onclick=()=>setMode("login");$("register-tab").onclick=()=>setMode("register");
-function setMode(next){mode=next;$("login-tab").classList.toggle("active",mode==="login");$("register-tab").classList.toggle("active",mode==="register");$("auth-submit").textContent=mode==="login"?"Sign in":"Create account";$("password").autocomplete=mode==="login"?"current-password":"new-password";$("password-hint").textContent=mode==="register"?"Password must be at least 12 characters.":"Use your account password."}
-$("auth-form").addEventListener("submit",async e=>{e.preventDefault();const button=$("auth-submit");button.disabled=true;message("auth-message","Working…");try{const response=await fetch("/api/auth/"+mode,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("email").value,password:$("password").value})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Request failed");$("password").value="";await loadAccount();}catch(error){message("auth-message",error.message)}finally{button.disabled=false}});
-async function api(path,options={}){const r=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})},cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Request failed");return d}
-async function loadAccount(){try{const data=await api("/api/auth/me");if(!data.authenticated){$("auth-view").classList.remove("hidden");$("workspace").classList.add("hidden");return}currentUser=data.user;$("auth-view").classList.add("hidden");$("workspace").classList.remove("hidden");$("user-email").textContent=currentUser.email;await Promise.all([loadKeys(),loadHistory()]);}catch(error){message("auth-message",error.message)}}
-async function loadKeys(){try{const data=await api("/api/auth/api-keys");$("keys").innerHTML=data.keys.length?data.keys.map(k=>'<div class="key"><strong>'+escapeHtml(k.name)+'</strong><small>'+escapeHtml(k.key_prefix)+'•••• · Created '+new Date(k.created_at).toLocaleString()+' · '+(k.revoked_at?'Revoked':k.last_used_at?'Last used '+new Date(k.last_used_at).toLocaleString():'Never used')+'</small>'+(k.revoked_at?'':'<div class="key-actions"><button class="btn danger" data-revoke="'+escapeHtml(k.id)+'">Revoke key</button></div>')+'</div>').join(""):'<p class="muted">No API keys yet.</p>';document.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=()=>revokeKey(b.dataset.revoke));}catch(error){$("keys").textContent=error.message}}
-async function loadHistory(){try{const data=await api("/api/scans");$("history").innerHTML=data.scans.length?data.scans.map(s=>'<div class="scan"><strong>'+escapeHtml(s.hostname)+' · '+Number(s.risk_score)+'/100 · '+escapeHtml(s.risk_level)+'</strong><small>'+new Date(s.created_at).toLocaleString()+' · '+(Array.isArray(s.findings)?s.findings.length:0)+' findings</small></div>').join(""):'<p class="muted">No personal scans yet. Sign in and scan a website to build your history.</p>';}catch(error){$("history").textContent=error.message}}
-$("create-key").onclick=async()=>{message("key-message","Creating key…");$("create-key").disabled=true;try{const data=await api("/api/auth/api-keys",{method:"POST",body:JSON.stringify({name:$("key-name").value})});$("key-value").textContent=data.key;$("new-key").classList.remove("hidden");$("key-name").value="";message("key-message","Key created successfully.");await loadKeys()}catch(error){message("key-message",error.message)}finally{$("create-key").disabled=false}};
-$("copy-key").onclick=async()=>{try{await navigator.clipboard.writeText($("key-value").textContent);message("key-message","Copied. Store it in a secure password manager or secret store.")}catch{message("key-message","Clipboard unavailable. Copy the key manually.")}};
-async function revokeKey(id){if(!confirm("Revoke this API key? Applications using it will stop working."))return;try{await api("/api/auth/api-keys",{method:"DELETE",body:JSON.stringify({id})});message("key-message","API key revoked.");await loadKeys()}catch(error){message("key-message",error.message)}}
-$("logout").onclick=async()=>{try{await api("/api/auth/logout",{method:"POST",body:"{}"});currentUser=null;message("auth-message","Signed out.");await loadAccount()}catch(error){message("auth-message",error.message)}};
-loadAccount();
-</script></body></html>
+const $=id=>document.getElementById(id);
+let mode="login",busy=false;
+const setMessage=(id,text,type="")=>{const el=$(id);el.textContent=text;el.className="message"+(type?" "+type:"")};
+const escapeHtml=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function setMode(next){
+ mode=next;
+ $("login-tab").classList.toggle("active",mode==="login");$("register-tab").classList.toggle("active",mode==="register");
+ $("login-tab").setAttribute("aria-selected",String(mode==="login"));$("register-tab").setAttribute("aria-selected",String(mode==="register"));
+ $("auth-submit").textContent=mode==="login"?"Sign in":"Create account";
+ $("password").autocomplete=mode==="login"?"current-password":"new-password";
+ $("password-guidance").textContent=mode==="login"?"Enter your account password.":"Use a unique password. Strength is estimated on this device and is not sent to the server.";
+ $("strength-wrap").classList.toggle("hidden",mode!=="register");$("confirm-wrap").classList.toggle("hidden",mode!=="register");
+ $("confirm-password").required=mode==="register";$("password").minLength=mode==="register"?12:0;
+ $("confirm-password").value="";setMessage("auth-message","");
+ if(mode==="register")updateStrength();else $("password").setAttribute("aria-invalid","false");
+}
+$("login-tab").addEventListener("click",()=>setMode("login"));$("register-tab").addEventListener("click",()=>setMode("register"));
+function updateStrength(){
+ const p=$("password").value,mail=$("email").value.toLowerCase().split("@")[0],has=(r)=>r.test(p);
+ const checks={length:p.length>=12,long:p.length>=16,mix:has(/[a-z]/)&&has(/[A-Z]/),number:has(/[0-9]/),symbol:has(/[^A-Za-z0-9]/),variety:!/(.)\1{3,}/.test(p)&&!/(1234|abcd|qwerty|password|letmein)/i.test(p)&&!(mail.length>=4&&p.toLowerCase().includes(mail))};
+ document.querySelectorAll("[data-check]").forEach(el=>el.classList.toggle("pass",!!checks[el.dataset.check]));
+ let score=0;if(checks.length)score++;if(checks.long)score++;if(checks.mix)score++;if(checks.number)score++;if(checks.symbol)score++;if(checks.variety)score++;
+ const label=p.length===0?"Not entered":p.length<12?"Too short":score<=2?"Weak":score<=3?"Fair":score<=4?"Good":"Strong";
+ $("strength-label").textContent=label;$("strength-fill").style.width=(p.length?Math.max(8,score/6*100):0)+"%";
+ $("strength-fill").style.background=label==="Strong"?"var(--mint)":label==="Good"?"var(--blue)":label==="Fair"?"var(--amber)":"var(--red)";
+ $("password").setAttribute("aria-invalid",String(p.length>0&&p.length<12));
+ const confirm=$("confirm-password");if(mode==="register"&&confirm.value){$("confirm-hint").textContent=confirm.value===p?"Passwords match.":"Passwords do not match yet.";$("confirm-hint").style.color=confirm.value===p?"var(--mint)":"var(--red)";}
+ return {checks,score,label};
+}
+$("password").addEventListener("input",()=>{if(mode==="register")updateStrength()});
+$("email").addEventListener("input",()=>{if(mode==="register")updateStrength()});
+$("confirm-password").addEventListener("input",()=>{if(mode==="register")updateStrength()});
+document.querySelectorAll("[data-toggle]").forEach(button=>button.addEventListener("click",()=>{const input=$(button.dataset.toggle);const reveal=input.type==="password";input.type=reveal?"text":"password";button.textContent=reveal?"Hide":"Show";}));
+async function readJson(response){const text=await response.text();try{return JSON.parse(text)}catch{return {error:"The server returned an unexpected response. Please retry."}}}
+$("auth-form").addEventListener("submit",async e=>{
+ e.preventDefault();if(busy)return;
+ const email=$("email").value.trim(),password=$("password").value;
+ if(!email||!$("email").validity.valid){$("email").focus();setMessage("auth-message","Enter a valid email address.","error");return}
+ if(!password||password.length>128||(mode==="register"&&password.length<12)){$("password").focus();setMessage("auth-message",mode==="register"?"Use a password between 12 and 128 characters.":"Enter your password.","error");return}
+ if(mode==="register"){
+  const result=updateStrength();
+  if(password!==$("confirm-password").value){$("confirm-password").focus();setMessage("auth-message","The passwords do not match. Check both fields and try again.","error");return}
+  if(!result.checks.length||!result.checks.variety){$("password").focus();setMessage("auth-message","Choose a password with at least 12 characters and avoid repeated or common patterns.","error");return}
+ }
+ busy=true;const button=$("auth-submit");button.disabled=true;button.textContent=mode==="login"?"Signing in…":"Creating account…";setMessage("auth-message",mode==="login"?"Checking your account…":"Creating your secure account…");
+ try{
+  const response=await fetch("/api/auth/"+(mode==="login"?"login":"register"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({email,password})});
+  const data=await readJson(response);
+  if(!response.ok){
+   let message=data.error||"The request could not be completed.";
+   if(response.status===401)message="Email or password is incorrect. Check your details and try again.";
+   if(response.status===409)message="An account with this email already exists. Switch to Sign in.";
+   if(response.status===429)message="Too many attempts. Please wait 15 minutes before trying again.";
+   if(response.status>=500)message=mode==="login"?"Sign-in service is temporarily unavailable. Your details have not been changed. Please retry shortly.":"Account creation could not be completed because the account service is unavailable. Your details are still here; please retry shortly.";
+   throw new Error(message);
+  }
+  const verify=await fetch("/api/auth/me",{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});
+  const session=await readJson(verify);
+  if(!verify.ok||!session.authenticated){setMessage("auth-message","The request was accepted, but this browser could not confirm a signed-in session. Please sign in again.","error");return}
+  $("password").value="";$("confirm-password").value="";await loadAccount();
+ }catch(error){setMessage("auth-message",error.message||"Something went wrong. Please retry.","error")}
+ finally{busy=false;button.disabled=false;button.textContent=mode==="login"?"Sign in":"Create account"}
+});
+async function api(path,options={}){
+ const r=await fetch(path,{...options,credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json",...(options.headers||{})},cache:"no-store"});
+ const d=await readJson(r);if(!r.ok){const error=new Error(d.error||"Request failed");error.status=r.status;throw error}return d;
+}
+async function loadAccount(){
+ try{
+  const data=await api("/api/auth/me");
+  if(!data.authenticated){$("auth-view").classList.remove("hidden");$("workspace").classList.add("hidden");return}
+  $("auth-view").classList.add("hidden");$("workspace").classList.remove("hidden");$("user-email").textContent=data.user.email;
+  await Promise.allSettled([loadKeys(),loadHistory()]);
+ }catch(error){$("auth-view").classList.remove("hidden");$("workspace").classList.add("hidden");setMessage("auth-message","We could not check your session. Refresh this page or try again shortly.","error")}
+}
+async function loadKeys(){
+ try{const data=await api("/api/auth/api-keys");$("keys").innerHTML=data.keys.length?data.keys.map(k=>'<div class="key"><strong>'+escapeHtml(k.name)+'</strong><small>'+escapeHtml(k.key_prefix)+'•••• · Created '+new Date(k.created_at).toLocaleString()+' · '+(k.revoked_at?"Revoked":k.last_used_at?"Last used "+new Date(k.last_used_at).toLocaleString():"Never used")+'</small>'+(k.revoked_at?"":'<div class="key-actions"><button class="danger" type="button" data-revoke="'+escapeHtml(k.id)+'">Revoke key</button></div>')+'</div>').join(""):'<p class="empty">No API keys yet. Create one when you need an integration.</p>';document.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=()=>revokeKey(b.dataset.revoke));}
+ catch(error){$("keys").textContent=error.message}
+}
+async function loadHistory(){
+ try{const data=await api("/api/scans");$("history").innerHTML=data.scans.length?data.scans.map(s=>'<div class="scan"><strong>'+escapeHtml(s.hostname)+' · '+Number(s.risk_score)+'/100 · '+escapeHtml(s.risk_level)+'</strong><small>'+new Date(s.created_at).toLocaleString()+' · '+(Array.isArray(s.findings)?s.findings.length:0)+' findings</small></div>').join(""):'<p class="empty">No private scans yet. Your future signed-in scans will appear here.</p>';}
+ catch(error){$("history").textContent=error.message}
+}
+$("create-key").onclick=async()=>{setMessage("key-message","Creating API key…");$("create-key").disabled=true;try{const data=await api("/api/auth/api-keys",{method:"POST",body:JSON.stringify({name:$("key-name").value})});$("key-value").textContent=data.key;$("new-key").classList.remove("hidden");$("key-name").value="";setMessage("key-message","Key created. Copy and store it securely.","success");await loadKeys()}catch(error){setMessage("key-message",error.message,"error")}finally{$("create-key").disabled=false}};
+$("copy-key").onclick=async()=>{try{await navigator.clipboard.writeText($("key-value").textContent);setMessage("key-message","Copied. Store it in a secure password manager.","success")}catch{setMessage("key-message","Clipboard unavailable. Select and copy the key manually.","error")}};
+async function revokeKey(id){if(!confirm("Revoke this API key? Applications using it will stop working."))return;try{await api("/api/auth/api-keys",{method:"DELETE",body:JSON.stringify({id})});setMessage("key-message","API key revoked.","success");await loadKeys()}catch(error){setMessage("key-message",error.message,"error")}}
+$("logout").onclick=async()=>{$("logout").disabled=true;setMessage("logout-message","Signing out…");try{await api("/api/auth/logout",{method:"POST",body:"{}"});setMessage("logout-message","Signed out.","success");await loadAccount()}catch(error){setMessage("logout-message",error.message,"error")}finally{$("logout").disabled=false}};
+$("menu-toggle").onclick=()=>{const nav=$("site-nav"),open=nav.classList.toggle("open");$("menu-toggle").setAttribute("aria-expanded",String(open))};
+setMode("login");loadAccount();
+</script>
+</div></body></html>

@@ -1,3 +1,12 @@
+export function passwordPolicyError(password: string, email = ""): string | null {
+  if (password.length < 12 || password.length > 128) return "Use a password between 12 and 128 characters.";
+  if (/(.)\1{3,}/.test(password)) return "Avoid repeating the same character four or more times.";
+  if (/(1234|abcd|qwerty|password|letmein)/i.test(password)) return "Avoid common passwords and predictable sequences.";
+  const emailName = email.toLowerCase().split("@")[0] ?? "";
+  if (emailName.length >= 4 && password.toLowerCase().includes(emailName)) return "Do not include your email name in your password.";
+  return null;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
