@@ -41,6 +41,12 @@ export const onRequestPost: PagesFunction<Env> = async ({request,env}) => {
   const input=body as {url:string;intervalHours?:number};
   let parsed;
   try{parsed=analyzeUrl(input.url)}catch(error){return json({error:error instanceof Error?error.message:"Invalid URL."},400)}
+  const host = parsed.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
+      host.endsWith(".internal") || host.endsWith(".test") || host.endsWith(".invalid") ||
+      /^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(host) || host.startsWith("[") || host.includes(":")) {
+    return json({error:"Only public DNS hostnames can be monitored."},400);
+  }
   const interval=Number(input.intervalHours??24);
   if(!Number.isInteger(interval)||interval<6||interval>168)return json({error:"Monitoring interval must be between 6 and 168 hours."},400);
   const sql=neon(env.DATABASE_URL);
