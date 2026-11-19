@@ -29,6 +29,7 @@
 - **Change monitoring:** authenticated users can add up to 20 domains at `/monitoring.html`, choose a 6–168 hour interval, and review scheduled snapshots and changed fields. Monitoring checks the root hostname, not the original URL path or query string.
 - **Snapshot history:** repeated scans and scheduled checks compare page title, final hostname, HTTP status, DNS addresses, TLS issuer/expiry/SANs, registration age, page indicators, threat-feed coverage, brand matches and Scam DNA.
 - **Evidence provenance:** the report separates provider findings, static heuristics, official registry discovery links and manual checks. It never labels a company or payout as verified when the underlying registry/payment evidence has not actually been checked.
+- **Legitimacy assessment:** a separate evidence checklist for threat reputation, brand/domain consistency, TLS hostname coverage, RDAP registration, DNS, public operator disclosures, business/payment claims, official regulator records and actual payouts. It deliberately never certifies a business as legitimate from technical signals alone.
 
 ### Advanced intelligence deployment
 
