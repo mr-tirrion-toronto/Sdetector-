@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<title>AI Security Assistant · Scam Detector</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#101e30;--line:#26394f;--text:#e9f1fa;--muted:#9aadc2;--accent:#69f0c1;--warn:#ffc66d}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -10%,#18324c 0,transparent 55%),var(--bg);color:var(--text);font:15px/1.6 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+a{color:var(--accent);text-decoration:none}.wrap{width:min(900px,calc(100% - 32px));margin:0 auto;padding:24px 0 48px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding:10px 0 20px}.brand{font-weight:800;letter-spacing:.08em}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.16em}
+.hero{padding:38px 0 24px}.eyebrow{color:var(--accent);font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:700}h1{font-size:clamp(30px,6vw,48px);line-height:1.1;margin:10px 0}.muted{color:var(--muted)}
+.panel{background:linear-gradient(150deg,#122338,#0c1928);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 18px 60px #0003}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}.chip{border:1px solid var(--line);border-radius:99px;padding:5px 10px;color:var(--muted);font-size:12px}
+#chat{display:flex;flex-direction:column;gap:12px;min-height:190px;max-height:55vh;overflow:auto;padding:8px 0 18px}
+.msg{max-width:90%;padding:13px 15px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere}.assistant{align-self:flex-start;background:#1a2c41;border:1px solid #2a415b}.user{align-self:flex-end;background:#153b36;border:1px solid #23675a}
+form{border-top:1px solid var(--line);padding-top:16px}label{display:block;font-weight:650;margin:0 0 8px}textarea{width:100%;resize:vertical;min-height:100px;border:1px solid #344b63;border-radius:12px;background:#091523;color:var(--text);padding:13px;font:inherit;outline:none}textarea:focus{border-color:var(--accent)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}button{border:0;border-radius:10px;background:var(--accent);color:#062019;font-weight:800;padding:12px 18px;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.notice{color:var(--warn);font-size:13px;margin:12px 0 0}.small{font-size:12px;color:var(--muted)}
+footer{margin-top:28px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:12px}
+@media(max-width:560px){.panel{padding:14px}.msg{max-width:98%}header{align-items:flex-start}}
+</style>
+</head>
+<body><div class="wrap">
+<header><a class="brand" href="/">SCAM DETECTOR<small>WEBSITE RISK INTELLIGENCE</small></a><a href="/account.html">Account & API ↗</a></header>
+<section class="hero"><div class="eyebrow">Evidence-grounded AI</div><h1>Ask the security assistant.</h1><p class="muted">Understand scan findings, ask follow-up questions and get practical defensive guidance. The assistant explains collected evidence; it does not invent checks or certify websites as safe.</p></section>
+<section class="panel">
+<div class="meta"><span class="chip" id="scan-chip">General Scam Detector questions</span><span class="chip">Private account access</span><span class="chip">12 AI questions / 10 min</span></div>
+<div id="chat" aria-live="polite"><div class="msg assistant">Hello. I can explain how Scam Detector works, interpret a saved investigation and help you decide what to verify next. What would you like to know?</div></div>
+<form id="ask-form">
+<label for="question">Your question</label>
+<textarea id="question" maxlength="3000" required placeholder="Example: Explain the strongest warning signs in this scan and what I should do next."></textarea>
+<div class="row"><span class="small">Do not share passwords, OTPs, payment details or private tokens.</span><button id="send" type="submit">Ask assistant →</button></div>
+<p class="notice" id="status" role="status"></p>
+</form>
+</section>
+<footer>AI answers may be wrong. A low risk score or missing threat match is not proof of safety. <a href="/">Return to scanner</a> · <a href="/privacy.html">Privacy</a></footer>
+</div>
+<script>
+const params=new URLSearchParams(location.search);
+const scanId=params.get('scan_id')||'';
+const chat=document.getElementById('chat'),form=document.getElementById('ask-form'),question=document.getElementById('question'),send=document.getElementById('send'),status=document.getElementById('status');
+if(scanId)document.getElementById('scan-chip').textContent='Saved investigation · '+scanId;
+function addMessage(role,text){const el=document.createElement('div');el.className='msg '+role;el.textContent=text;chat.appendChild(el);chat.scrollTop=chat.scrollHeight;return el}
+form.addEventListener('submit',async e=>{
+ e.preventDefault();const q=question.value.trim();if(!q)return;
+ send.disabled=true;send.textContent='Thinking…';status.textContent='';
+ addMessage('user',q);question.value='';
+ const pending=addMessage('assistant','Reviewing the available evidence…');
+ try{
+  const response=await fetch('/api/ai/assistant',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},credentials:'same-origin',body:JSON.stringify({question:q,...(scanId?{scan_id:scanId}:{})})});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||'The assistant could not answer.');
+  pending.textContent=data.answer;
+ }catch(error){pending.textContent=error instanceof Error?error.message:'Something went wrong.';status.textContent='If you are not signed in, open Account & API and sign in first. If this scan was created before signing in, run it again while signed in.'}
+ finally{send.disabled=false;send.textContent='Ask assistant →';question.focus()}
+});
+</script>
+</body></html>
