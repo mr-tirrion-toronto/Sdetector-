@@ -5,6 +5,10 @@ import { investigateDomain } from "../../src/domain-intel";
 import { inspectLiveDomain, type TlsData } from "../../src/live-inspection";
 import { getAuthenticatedUser } from "../../src/auth";
 import { buildIndependentEvidence } from "../../src/independent-evidence";
+import { detectBrandImpersonation } from "../../src/brand-intelligence";
+import { buildScamDna } from "../../src/scam-dna";
+import { buildRelationshipGraph } from "../../src/relationship-graph";
+import { buildWebsiteSnapshot, compareSnapshots, type WebsiteSnapshot } from "../../src/change-monitoring";
 
 interface Env {
   DATABASE_URL?: string;
@@ -229,9 +233,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       console.error("TLS_CACHE_WRITE_FAILED", error instanceof Error ? error.name : "UnknownError");
     }
   }
+  const brandAssessment = detectBrandImpersonation({
+    hostname: result.hostname,
+    pageTitle: pageData?.title,
+    indicators: pageData?.indicators ?? [],
+    businessSignals: pageData?.businessSignals ?? []
+  });
   const externalConfirmed = domainIntelligence.status === "available" &&
     domainIntelligence.verdict?.threat === true;
-  const findings = [...result.findings, ...threatIntelligence.findings, ...(liveInspection?.findings ?? [])];
+  const findings = [...result.findings, ...threatIntelligence.findings,
+    ...(liveInspection?.findings ?? []), ...brandAssessment.findings];
   if (externalConfirmed) {
     findings.push({
       code: "PHISHDESTROY_CONFIRMED_THREAT",
@@ -265,9 +276,42 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         Number(domainIntelligence.assessment?.maxScore ?? 100)) * 100)
     : 0;
   const livePoints = (liveInspection?.findings ?? []).reduce((total, finding) => total + finding.points, 0);
-  const score = confirmedThreat ? 100 : Math.min(100, Math.max(result.score, Math.min(100, externalScore)) + livePoints);
+  const brandPoints = brandAssessment.findings.reduce((total, finding) => total + finding.points, 0);
+  const score = confirmedThreat ? 100 : Math.min(100, Math.max(result.score, Math.min(100, externalScore)) + livePoints + brandPoints);
   const riskLevel = score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "guarded" : "low";
   const riskCategory = confirmedThreat ? "confirmed_threat" : score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "suspicious" : "low";
+  const threatSources = findings.filter(finding => finding.code.startsWith("KNOWN_")).map(finding =>
+    finding.code.includes("MALWARE") ? "URLhaus" : finding.code.includes("PHISHING") ? "Phishunt/PhishTank" : "Threat intelligence"
+  );
+  const scamDna = await buildScamDna({
+    hostname: result.hostname, findings, brands: brandAssessment.matches, live: liveInspection,
+    threatSources, businessSignals: pageData?.businessSignals ?? []
+  });
+  const relationshipGraph = buildRelationshipGraph({
+    hostname: result.hostname,
+    ips: liveInspection?.dns.data?.records.filter(record => record.type === "A" || record.type === "AAAA").map(record => record.value) ?? [],
+    certificateNames: liveInspection?.tls.data?.subjectAltNames ?? [],
+    relatedDomains: domainIntelligence.related,
+    campaignBrand: domainIntelligence.campaign?.brand,
+    brands: brandAssessment.matches
+  });
+  const websiteSnapshot = buildWebsiteSnapshot({live:liveInspection,dna:scamDna,brands:brandAssessment,threat:threatIntelligence});
+  let previousSnapshot: WebsiteSnapshot | null = null;
+  let previousCheckedAt: string | null = null;
+  let historyAvailable = false;
+  try {
+    const historyRows = await sql`SELECT snapshot, created_at FROM scan_intelligence
+      WHERE hostname = ${result.hostname} ORDER BY created_at DESC LIMIT 1`;
+    const previous = (historyRows as Array<{snapshot:WebsiteSnapshot;created_at:string}>)[0];
+    if (previous?.snapshot) { previousSnapshot = previous.snapshot; previousCheckedAt = previous.created_at; }
+    historyAvailable = true;
+  } catch (error) {
+    console.warn("SCAN_CHANGE_HISTORY_UNAVAILABLE", error instanceof Error ? error.name : "UnknownError");
+  }
+  const changeMonitoring = historyAvailable
+    ? await compareSnapshots(websiteSnapshot, previousSnapshot)
+    : {status:"history_unavailable" as const,fingerprint:null,previousFingerprint:null,changedFields:[],previousCheckedAt:null,checkedAt:new Date().toISOString(),note:"Change history is not available until the advanced-intelligence database migration is applied."};
+  changeMonitoring.previousCheckedAt = previousCheckedAt;
   let assessmentStatus:
     | "known_threat_detected"
     | "no_known_threat_match"
@@ -289,6 +333,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } else assessmentStatus = "insufficient_evidence";
 
   const limitations = [...result.limitations];
+  limitations.push(...brandAssessment.limitations, ...relationshipGraph.limitations, ...scamDna.limitations);
+  if (changeMonitoring.status === "history_unavailable") limitations.push(changeMonitoring.note);
   if (threatIntelligence.status === "not_configured") {
     limitations.push("Scheduled local threat-intelligence feeds are not configured yet.");
   } else if (threatIntelligence.status === "partial" || threatIntelligence.status === "unavailable") {
@@ -318,10 +364,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     threatIntelligence,
     domainIntelligence,
     liveInspection,
-    independentEvidence
+    independentEvidence,
+    brandAssessment,
+    scamDna,
+    relationshipGraph,
+    websiteSnapshot,
+    changeMonitoring
   };
 
   let saved = false;
+  let intelligenceSaved = false;
   try {
     const storedUrl = redactUrlForStorage(result.inputUrl);
     const findingsJson = JSON.stringify(findings);
@@ -353,9 +405,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch (error) {
     console.error("SCAN_PERSISTENCE_FAILED", error instanceof Error ? error.name : "UnknownError");
   }
+  if (saved) {
+    try {
+      const snapshotFingerprint = changeMonitoring.fingerprint;
+      await sql`INSERT INTO scan_intelligence
+        (scan_id, hostname, dna_hash, dna_family, snapshot_fingerprint, snapshot,
+         scam_dna, brand_assessment, relationship_graph, change_summary, created_at)
+        VALUES
+        (${scanId}, ${result.hostname}, ${scamDna.fingerprint}, ${scamDna.family},
+         ${snapshotFingerprint}, ${JSON.stringify(websiteSnapshot)}::jsonb,
+         ${JSON.stringify(scamDna)}::jsonb, ${JSON.stringify(brandAssessment)}::jsonb,
+         ${JSON.stringify(relationshipGraph)}::jsonb, ${JSON.stringify(changeMonitoring)}::jsonb, NOW())`;
+      intelligenceSaved = true;
+    } catch (error) {
+      console.error("SCAN_INTELLIGENCE_PERSISTENCE_FAILED", error instanceof Error ? error.name : "UnknownError");
+    }
+  }
 
   return json({
     ...scanResult,
-    persistence: saved ? "saved" : "not_configured_or_unavailable"
+    persistence: saved ? "saved" : "not_configured_or_unavailable",
+    intelligencePersistence: intelligenceSaved ? "saved" : "not_configured_or_unavailable"
   });
 };
