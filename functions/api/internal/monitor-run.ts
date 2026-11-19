@@ -26,8 +26,8 @@ export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
     next_check_at=NOW()+(m.interval_hours*INTERVAL '1 hour'),
     last_checked_at=NOW(),last_error=NULL,updated_at=NOW()
   FROM due WHERE m.id=due.id
-  RETURNING m.id,m.hostname,m.interval_hours`;
-  const targets=due as Array<{id:string;hostname:string;interval_hours:number}>;
+  RETURNING m.id,m.hostname,m.interval_hours,m.user_id`;
+  const targets=due as Array<{id:string;hostname:string;interval_hours:number;user_id:string}>;
   if(!targets.length)return json({status:"ok",processed:0,message:"No monitoring targets are due."});
   const target=targets[0];
   try{
@@ -42,11 +42,15 @@ export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
    const fingerprint=String(result.changeMonitoring.fingerprint??"");
    if(!/^[a-f0-9]{64}$/.test(fingerprint))throw new Error("SNAPSHOT_FINGERPRINT_INVALID");
    const savedScan=result.persistence==="saved"?result.scanId:null;
+   if(savedScan)await sql`UPDATE scans SET user_id=${target.user_id} WHERE id=${savedScan}`;
    await sql`INSERT INTO monitor_snapshots
      (id,monitor_id,scan_id,snapshot_fingerprint,snapshot,change_summary,checked_at)
      VALUES (${crypto.randomUUID()},${target.id},${savedScan},${fingerprint},
        ${JSON.stringify(result.websiteSnapshot)}::jsonb,
        ${JSON.stringify(result.changeMonitoring)}::jsonb,NOW())`;
+   await sql`DELETE FROM monitor_snapshots WHERE monitor_id=${target.id}
+     AND id NOT IN (SELECT id FROM monitor_snapshots WHERE monitor_id=${target.id}
+       ORDER BY checked_at DESC LIMIT 30)`;
    await sql`UPDATE monitored_domains SET last_scan_id=${savedScan},last_error=NULL,updated_at=NOW()
      WHERE id=${target.id}`;
    return json({
