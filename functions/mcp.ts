@@ -96,13 +96,15 @@ async function invokeHandler(
 async function callTool(name: string, args: Record<string, unknown>, request: Request, env: Env): Promise<Response> {
   if (name === "get_scanner_health") {
     const healthRequest = new Request(new URL("/api/health", request.url), { method: "GET", headers: request.headers });
-    return invokeHandler(healthGet as any, healthRequest, env);
+    const healthResponse = await invokeHandler(healthGet as any, healthRequest, env);
+    const data = await healthResponse.json().catch(() => ({ error: "Health endpoint returned an unreadable response." }));
+    return toolResult(data, !healthResponse.ok);
   }
 
   if (!env.DATABASE_URL) {
     return toolResult({ error: "Scam Detector account authentication is unavailable." }, true);
   }
-  let user;
+  let user: Awaited<ReturnType<typeof getAuthenticatedUser>>;
   try {
     user = await getAuthenticatedUser(neon(env.DATABASE_URL), request);
   } catch (error) {
@@ -119,7 +121,8 @@ async function callTool(name: string, args: Record<string, unknown>, request: Re
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "authorization": request.headers.get("authorization") ?? ""
+        "authorization": request.headers.get("authorization") ?? "",
+        ...(request.headers.get("cf-connecting-ip") ? { "cf-connecting-ip": request.headers.get("cf-connecting-ip")! } : {})
       },
       body: JSON.stringify({ url: args.url })
     });
