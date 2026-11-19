@@ -4,6 +4,19 @@ import { getAuthenticatedUser, isSameOriginMutation, json } from "../../src/auth
 
 interface Env { DATABASE_URL?: string }
 const BODY_LIMIT=2048;
+async function readBodyLimited(request:Request):Promise<string>{
+  const reader=request.body?.getReader();if(!reader)return "";
+  const chunks:Uint8Array[]=[];let total=0;
+  try{
+    while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;
+      if(total>BODY_LIMIT){await reader.cancel();throw new Error("BODY_TOO_LARGE")}
+      chunks.push(value);
+    }
+  }finally{reader.releaseLock()}
+  const body=new Uint8Array(total);let offset=0;
+  for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength}
+  return new TextDecoder().decode(body);
+}
 
 export const onRequestGet: PagesFunction<Env> = async ({request,env}) => {
   if(!env.DATABASE_URL)return json({error:"Monitoring storage is unavailable."},503);
@@ -33,10 +46,14 @@ export const onRequestPost: PagesFunction<Env> = async ({request,env}) => {
   if(!isSameOriginMutation(request))return json({error:"Cross-origin request rejected."},403);
   const contentType=request.headers.get("content-type")??"";
   if(!contentType.toLowerCase().includes("application/json"))return json({error:"Content-Type must be application/json."},415);
-  const declared=Number(request.headers.get("content-length")??"0");
-  if(declared>BODY_LIMIT)return json({error:"Request body is too large."},413);
   let body:unknown;
-  try{body=await request.json()}catch{return json({error:"Provide valid JSON."},400)}
+  try{
+    const raw=await readBodyLimited(request);
+    body=JSON.parse(raw);
+  }catch(error){
+    if(error instanceof Error&&error.message==="BODY_TOO_LARGE")return json({error:"Request body is too large."},413);
+    return json({error:"Provide valid JSON."},400);
+  }
   if(!body||typeof body!=="object"||!("url" in body)||typeof (body as {url?:unknown}).url!=="string")return json({error:"Provide a URL string."},400);
   const input=body as {url:string;intervalHours?:number};
   let parsed;
