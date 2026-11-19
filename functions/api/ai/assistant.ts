@@ -133,7 +133,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const sql = neon(env.DATABASE_URL);
-  let user;
+  let user: Awaited<ReturnType<typeof getAuthenticatedUser>>;
   try {
     user = await getAuthenticatedUser(sql, request);
   } catch (error) {
