@@ -4,6 +4,8 @@ import { buildRelationshipGraph } from "../src/relationship-graph";
 import { buildScamDna } from "../src/scam-dna";
 import { compareSnapshots, fingerprintSnapshot, type WebsiteSnapshot } from "../src/change-monitoring";
 import type { Finding } from "../src/analyzer";
+import { assessLegitimacy } from "../src/legitimacy-assessment";
+import { buildIndependentEvidence } from "../src/independent-evidence";
 
 const sampleFinding:Finding={code:"SENSITIVE_ACTION_TERMS",title:"Sensitive URL terms",severity:"medium",points:12,evidence:"login and verify terms",recommendation:"Verify the domain."};
 const snapshot:WebsiteSnapshot={
@@ -73,5 +75,31 @@ describe("website change monitoring",()=>{
   const baseline=await compareSnapshots(snapshot,null);
   expect(baseline.status).toBe("baseline");
   expect(baseline.fingerprint).toHaveLength(64);
+ });
+});
+
+describe("evidence-based legitimacy assessment",()=>{
+ it("never calls an unverified website legitimate",()=>{
+  const assessment=assessLegitimacy({
+   brands:detectBrandImpersonation({hostname:"example.com"}),
+   live:null,
+   threat:{status:"available",matched:false,feeds:[],findings:[]},
+   findings:[],
+   independentEvidence:buildIndependentEvidence({hostname:"example.com"})
+  });
+  expect(assessment.status).toBe("not_verified");
+  expect(assessment.label).toContain("not verified");
+  expect(assessment.checks.find(check=>check.id==="payouts")?.status).toBe("manual_review");
+  expect(assessment.notVerified.length).toBeGreaterThan(0);
+ });
+ it("prioritizes confirmed threat evidence over positive technical observations",()=>{
+  const assessment=assessLegitimacy({
+   brands:detectBrandImpersonation({hostname:"example.com"}),
+   live:null,
+   threat:{status:"available",matched:true,feeds:[],findings:[]},
+   findings:[],
+   independentEvidence:buildIndependentEvidence({hostname:"example.com"})
+  });
+  expect(assessment.status).toBe("known_threat");
  });
 });
