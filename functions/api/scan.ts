@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { analyzeUrl } from "../../src/analyzer";
-import { lookupThreatIntelligence } from "../../src/threat-intel";
+import { lookupThreatIntelligence, type ThreatIntelResult } from "../../src/threat-intel";
 import { investigateDomain } from "../../src/domain-intel";
 import { inspectLiveDomain, type TlsData } from "../../src/live-inspection";
 import { getAuthenticatedUser } from "../../src/auth";
@@ -178,11 +178,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ error: "Scanner is temporarily unavailable. Please try again shortly." }, 503);
   }
 
-  let threatIntelligence = {
-    status: "unavailable" as "available" | "partial" | "unavailable" | "not_configured",
+  let threatIntelligence: ThreatIntelResult = {
+    status: "unavailable",
     matched: false,
-    feeds: [] as Array<{ source: string; status: string; lastUpdatedAt: string | null; itemCount: number }>,
-    findings: [] as typeof result.findings
+    feeds: [],
+    findings: []
   };
 
   let cachedTls: TlsData | null = null;
@@ -281,7 +281,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const score = confirmedThreat ? 100 : Math.min(100, Math.max(result.score, Math.min(100, externalScore)) + livePoints + brandPoints);
   const riskLevel = score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "guarded" : "low";
   const riskCategory = confirmedThreat ? "confirmed_threat" : score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "suspicious" : "low";
-  const threatSources = findings.filter(finding => finding.code.startsWith("KNOWN_")).map(finding =>
+  const threatSources: string[] = findings.filter(finding => finding.code.startsWith("KNOWN_")).map(finding =>
     finding.code === "KNOWN_MALWARE_URL" ? "URLhaus" :
     finding.code === "KNOWN_PHISHING_DOMAIN" ? "Phishunt" :
     finding.code === "KNOWN_PHISHING_URL" ? "PhishTank" : "Threat intelligence"
