@@ -218,7 +218,7 @@ function renderResult(data){
   resultEl.style.display='block';
   document.querySelector('#print-report').addEventListener('click',()=>{sessionStorage.setItem('scamDetectorReport',JSON.stringify({...data,scannedAt:new Date().toISOString()}));window.location.href='/report.html';});
   document.querySelector('#copy-summary').addEventListener('click',async()=>{
-    const summary='Scam Detector report\nWebsite: '+data.hostname+'\nScore: '+data.score+'/100\nAssessment: '+badgeText+'\nThreat intelligence: '+intelLabel+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No configured warning patterns or known-feed matches found.')+'\n\nA missing match is not proof that a website is safe.';
+    const summary='Scam Detector report\nWebsite: '+data.hostname+'\nScore: '+data.score+'/100\nRisk category: '+riskBadgeText+'\nAssessment status: '+assessment+'\nThreat intelligence: '+intelLabel+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No configured warning patterns or known-feed matches found.')+'\n\nA missing match is not proof that a website is safe.';
     try{await navigator.clipboard.writeText(summary);statusEl.textContent='Report summary copied.'}catch{statusEl.textContent='Clipboard unavailable in this browser. Use Print / Save as PDF instead.'}
   });
 }
