@@ -29,7 +29,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (/unique|duplicate/i.test(message)) return json({ error: "An account with this email already exists." }, 409);
-    console.error("ACCOUNT_REGISTER_FAILED", stage, error instanceof Error ? error.name : "UnknownError");
-    return json({ error: "Account could not be created. Please retry.", code: "ACCOUNT_CREATE_" + stage.toUpperCase() }, 500);
+    const errorType = error instanceof Error ? error.name : "UnknownError";
+    console.error("ACCOUNT_REGISTER_FAILED", stage, errorType, error instanceof Error ? error.message : "");
+    return json({ error: "Account could not be created. Please retry.", code: "ACCOUNT_CREATE_" + stage.toUpperCase(), errorType }, 500);
   }
 };
