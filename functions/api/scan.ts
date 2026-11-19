@@ -281,8 +281,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const riskLevel = score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "guarded" : "low";
   const riskCategory = confirmedThreat ? "confirmed_threat" : score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "suspicious" : "low";
   const threatSources = findings.filter(finding => finding.code.startsWith("KNOWN_")).map(finding =>
-    finding.code.includes("MALWARE") ? "URLhaus" : finding.code.includes("PHISHING") ? "Phishunt/PhishTank" : "Threat intelligence"
+    finding.code === "KNOWN_MALWARE_URL" ? "URLhaus" :
+    finding.code === "KNOWN_PHISHING_DOMAIN" ? "Phishunt" :
+    finding.code === "KNOWN_PHISHING_URL" ? "PhishTank" : "Threat intelligence"
   );
+  if (externalConfirmed) threatSources.push("PhishDestroy");
   const scamDna = await buildScamDna({
     hostname: result.hostname, findings, brands: brandAssessment.matches, live: liveInspection,
     threatSources, businessSignals: pageData?.businessSignals ?? []
