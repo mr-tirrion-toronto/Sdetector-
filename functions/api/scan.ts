@@ -359,7 +359,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     riskLevel,
     riskCategory,
     assessmentStatus,
-    confidence: confirmedThreat ? "high" : domainIntelligence.assessment && domainIntelligence.assessment.score >= 20 ? "moderate" : "limited",
+    confidence: confirmedThreat ? "high" : (brandAssessment.matches.length > 0 || (domainIntelligence.assessment && domainIntelligence.assessment.score >= 20)) ? "moderate" : "limited",
     limitations,
     threatIntelligence,
     domainIntelligence,
