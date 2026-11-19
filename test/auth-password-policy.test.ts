@@ -10,6 +10,7 @@ describe("account password policy", () => {
   });
   it("rejects common sequences and repeated characters", () => {
     expect(passwordPolicyError("Password1234!")).toContain("common");
+    expect(passwordPolicyError("P@ssw0rd123!")).toContain("common");
     expect(passwordPolicyError("AAAAaaaa1111!!!!")).toContain("repeating");
   });
   it("rejects a password containing the email name", () => {
