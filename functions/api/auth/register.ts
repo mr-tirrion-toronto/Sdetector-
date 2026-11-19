@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { authRateAllowed, createSession, hashPassword, isSameOriginMutation, json, newSalt, sessionCookie } from "../../../src/auth";
+import { authRateAllowed, createSession, hashPassword, isSameOriginMutation, json, newSalt, passwordPolicyError, sessionCookie } from "../../../src/auth";
 
 interface Env { DATABASE_URL?: string }
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -11,7 +11,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const email = String((body as any).email ?? "").trim().toLowerCase();
   const password = String((body as any).password ?? "");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json({ error: "Enter a valid email address." }, 400);
-  if (password.length < 12 || password.length > 128) return json({ error: "Use a password between 12 and 128 characters." }, 400);
+  const passwordError = passwordPolicyError(password, email);
+  if (passwordError) return json({ error: passwordError }, 400);
   const sql = neon(env.DATABASE_URL);
   let stage = "rate_limit";
   try {
