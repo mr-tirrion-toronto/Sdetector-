@@ -72,23 +72,26 @@ async function loadOwnedScan(sql: any, scanId: string, userId: string): Promise<
           'points', f.points, 'evidence', f.evidence, 'recommendation', f.recommendation
         ) ORDER BY f.id)
         FROM scan_findings f WHERE f.scan_id = s.id
-      ), '[]'::jsonb) AS findings,
-      (
-        SELECT jsonb_build_object(
-          'scam_dna', i.scam_dna,
-          'brand_assessment', i.brand_assessment,
-          'legitimacy_assessment', i.legitimacy_assessment,
-          'relationship_graph', i.relationship_graph,
-          'change_summary', i.change_summary
-        )
-        FROM scan_intelligence i WHERE i.scan_id = s.id
-        ORDER BY i.created_at DESC LIMIT 1
-      ) AS intelligence
+      ), '[]'::jsonb) AS findings
     FROM scans s
     WHERE s.id = ${scanId} AND s.user_id = ${userId}
     LIMIT 1
   `;
-  return (rows as ScanEvidence[])[0] ?? null;
+  const scan = (rows as ScanEvidence[])[0];
+  if (!scan) return null;
+  try {
+    const intelligenceRows = await sql`
+      SELECT scam_dna, brand_assessment, legitimacy_assessment, relationship_graph, change_summary
+      FROM scan_intelligence
+      WHERE scan_id = ${scanId}
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    scan.intelligence = (intelligenceRows as Array<NonNullable<ScanEvidence["intelligence"]>>)[0] ?? null;
+  } catch {
+    // Older installations may not yet have the optional advanced-intelligence migration.
+    scan.intelligence = null;
+  }
+  return scan;
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
