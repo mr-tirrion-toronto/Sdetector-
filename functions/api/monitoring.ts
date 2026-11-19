@@ -73,8 +73,9 @@ export const onRequestPost: PagesFunction<Env> = async ({request,env}) => {
   try{
     const countRows=await sql`SELECT COUNT(*)::int AS count FROM monitored_domains WHERE user_id=${user.id} AND enabled=TRUE`;
     const count=Number((countRows as Array<{count:number}>)[0]?.count??0);
-    const existing=await sql`SELECT id FROM monitored_domains WHERE user_id=${user.id} AND hostname=${parsed.hostname} LIMIT 1`;
-    if(count>=20&&!existing.length)return json({error:"You can monitor up to 20 domains on this account."},429);
+    const existing=await sql`SELECT id,enabled FROM monitored_domains WHERE user_id=${user.id} AND hostname=${parsed.hostname} LIMIT 1`;
+    const existingEnabled=Boolean((existing as Array<{enabled:boolean}>)[0]?.enabled);
+    if(count>=20&&(!existing.length||!existingEnabled))return json({error:"You can monitor up to 20 domains on this account."},429);
     const rows=await sql`INSERT INTO monitored_domains
       (id,user_id,hostname,interval_hours,enabled,next_check_at,created_at,updated_at)
       VALUES (${crypto.randomUUID()},${user.id},${parsed.hostname},${interval},TRUE,NOW(),NOW(),NOW())
