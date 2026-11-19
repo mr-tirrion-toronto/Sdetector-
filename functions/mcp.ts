@@ -161,7 +161,7 @@ async function callTool(name: string, args: Record<string, unknown>, request: Re
 export const onRequestOptions: PagesFunction<Env> = async () => new Response(null, { status: 204, headers: CORS_HEADERS });
 
 export const onRequestGet: PagesFunction<Env> = async () =>
-  response({ name: "scam-detector-mcp", transport: "streamable-http", status: "ready", note: "POST JSON-RPC requests to this endpoint. Tools require a Scam Detector account API key." });
+  response({ error: "This stateless MCP endpoint supports JSON-RPC POST requests only; server-sent events are not enabled." }, 405);
 
 export const onRequestDelete: PagesFunction<Env> = async () =>
   response({ error: "This stateless MCP endpoint does not create sessions." }, 405);
