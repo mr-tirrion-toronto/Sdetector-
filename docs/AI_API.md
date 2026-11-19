@@ -69,8 +69,18 @@ The assistant only retrieves scans owned by the authenticated account. It will n
 - Do not submit passwords, payment details, OTPs, recovery phrases, private tokens or other secrets in URLs or questions.
 - AI output is explanatory and may be wrong. It is not a substitute for independent verification or incident response.
 
+## Model Context Protocol (MCP) server
+
+The project also exposes a stateless Streamable HTTP MCP endpoint at `POST /mcp`. It advertises three tools:
+
+- `investigate_website` — run the existing full website investigation.
+- `ask_scam_detector_ai` — ask the evidence-grounded assistant about a saved scan or the service.
+- `get_scanner_health` — check API and database health.
+
+The MCP server supports the Streamable HTTP JSON-RPC lifecycle and requires a Scam Detector account API key for investigation and AI tools. In a compatible MCP client, connect to `https://scam-detector-a92.pages.dev/mcp` and choose API-key authentication with the Bearer scheme. Use a Scam Detector `sd_live_...` key from the account workspace. The health tool is available without authentication.
+
 ## Integrating a custom GPT
 
 Import `https://scam-detector-a92.pages.dev/openapi.json` into the custom GPT's Actions configuration. Configure authentication as API Key → Bearer and use a Scam Detector account API key. Keep the OpenAI Platform key exclusively in Cloudflare.
 
-ChatGPT will not automatically gain access to this service merely because the API exists; a GPT Action or an explicitly configured connector must be connected and authorized.
+ChatGPT will not automatically gain access to this service merely because the API exists; install and authorize the Scam Detector MCP plugin or configure a GPT Action. Each user must authorize access with their own Scam Detector account API key.
