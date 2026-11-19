@@ -1,0 +1,88 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Scam Detector Security Intelligence API",
+    "version": "1.0.0",
+    "description": "Evidence-grounded website risk investigations and AI explanations. Use a Scam Detector account API key (sd_live_...), never an OpenAI API key, to authenticate API clients. A low score or missing match is not proof that a website is safe."
+  },
+  "servers": [
+    { "url": "https://scam-detector-a92.pages.dev", "description": "Scam Detector production API" }
+  ],
+  "security": [{ "ScamDetectorBearer": [] }],
+  "paths": {
+    "/api/scan": {
+      "post": {
+        "operationId": "investigateWebsite",
+        "summary": "Investigate a website URL",
+        "description": "Runs deterministic URL analysis and available live technical and threat-intelligence checks. Do not visit the submitted URL yourself. The result is evidence, not a guarantee of safety.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": { "type": "string", "format": "uri", "maxLength": 2048, "description": "Public HTTP or HTTPS URL to investigate. Never include passwords, tokens or private query parameters." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Investigation result with findings, risk indicator, evidence, source status, limitations and scan_id.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
+          "400": { "description": "Invalid URL or request." },
+          "429": { "description": "Rate limit reached." },
+          "503": { "description": "Scanner temporarily unavailable." }
+        }
+      }
+    },
+    "/api/ai/assistant": {
+      "post": {
+        "operationId": "askScamDetector",
+        "summary": "Ask Scam Detector AI about a scan or the service",
+        "description": "Answers questions using a saved scan belonging to the authenticated account, or general published service capabilities when scan_id is omitted. Scan a URL first with investigateWebsite, then pass its scanId as scan_id for evidence-grounded follow-up questions.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["question"],
+                "properties": {
+                  "question": { "type": "string", "minLength": 1, "maxLength": 3000 },
+                  "scan_id": { "type": "string", "format": "uuid", "description": "Optional scanId returned by investigateWebsite. Only scans owned by the authenticated account can be used." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "AI answer and optional scan_id.", "content": { "application/json": { "schema": { "type": "object", "properties": { "answer": { "type": "string" }, "scan_id": { "type": ["string", "null"] }, "model": { "type": "string" }, "usage": { "type": ["object", "null"] } }, "required": ["answer"] } } },
+          "401": { "description": "Sign in or provide a valid Scam Detector API key." },
+          "404": { "description": "Scan not found or not owned by the authenticated account." },
+          "429": { "description": "AI request limit reached." },
+          "503": { "description": "AI integration not configured or provider temporarily unavailable." }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "getScannerHealth",
+        "summary": "Check scanner API and database health",
+        "security": [],
+        "responses": { "200": { "description": "Scanner API health status." }, "503": { "description": "Scanner database is unavailable." } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ScamDetectorBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "sd_live_...",
+        "description": "Create an API key in your Scam Detector account workspace. This is not your OpenAI Platform key."
+      }
+    }
+  }
+}
