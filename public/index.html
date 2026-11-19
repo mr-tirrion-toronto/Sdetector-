@@ -24,7 +24,7 @@
 <div class="shell">
   <header>
     <a class="brand" href="/" aria-label="Scam Detector home"><span class="brandmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8 20 6v5.2c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3.2Z"/><path d="m8.7 12 2.1 2.1 4.6-4.7"/></svg></span><span>SCAM DETECTOR<small>WEBSITE RISK INTELLIGENCE</small></span></a>
-    <nav class="nav"><a href="#scanner">URL Scanner</a><a href="/dashboard.html">Dashboard</a><a href="/account.html">Account & API</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
+    <nav class="nav"><a href="#scanner">URL Scanner</a><a href="/dashboard.html">Dashboard</a><a href="/account.html">Account & API</a><a href="/monitoring.html">Monitoring</a><a href="#capabilities">Capabilities</a><a href="#how-it-works">How it works</a></nav>
     <div class="status-pill" id="service-status"><i class="dot"></i> CHECKING SERVICE</div>
   </header>
   <section class="hero">
@@ -173,7 +173,36 @@ function renderResult(data){
     (relationship.certificateCoNames?.length?'<div class="feed-row"><span>Other names on same certificate</span><b>'+escapeHtml(relationship.certificateCoNames.join(', '))+'</b></div>':'')+
     '<p class="feed-note">'+escapeHtml(relationship.interpretation||'Technical relationships are leads only and do not prove common ownership.')+'</p>'+
     (Array.isArray(evidence.limitations)?'<p class="feed-note">'+evidence.limitations.map(escapeHtml).join(' ')+'</p>':'')+'</div>';
+  const legitimacy=data.legitimacyAssessment||{label:'Legitimacy not verified',summary:'There is not enough independent evidence to establish the operator identity.',checks:[],notVerified:[]};
+  const legitimacyPanel='<div class="feed-panel"><strong>Legitimacy assessment · '+escapeHtml(legitimacy.label)+'</strong>'+
+    '<p class="feed-note">'+escapeHtml(legitimacy.summary)+'</p>'+
+    '<div class="feed-row"><span>Positive observations</span><b>'+numberText(legitimacy.positiveObservations||0)+'</b></div>'+
+    '<div class="feed-row"><span>Warnings</span><b>'+numberText(legitimacy.warnings||0)+'</b></div>'+
+    (Array.isArray(legitimacy.checks)?legitimacy.checks.map(check=>'<div class="feed-row"><span>'+escapeHtml(check.label)+' · '+escapeHtml(check.status.replace(/_/g,' '))+'</span><p>'+escapeHtml(check.evidence)+' <small>Source: '+escapeHtml(check.source)+'</small></p></div>').join(''):'')+
+    (Array.isArray(legitimacy.notVerified)?'<p class="feed-note">Still not verified: '+legitimacy.notVerified.map(escapeHtml).join(' · ')+'</p>':'')+
+    '<p class="feed-note">A positive technical observation is not a legitimacy certificate. Manual registry, operator and payout checks may still be required.</p></div>';
+  const brand=data.brandAssessment||{matches:[],limitations:[]};
+  const dna=data.scamDna||{};
+  const graph=data.relationshipGraph||{nodes:[],edges:[],limitations:[]};
+  const change=data.changeMonitoring||{};
+  const advancedPanel='<div class="feed-panel"><strong>Scam DNA · '+escapeHtml(dna.familyLabel||'Not classified')+'</strong>'+
+    '<div class="feed-row"><span>Fingerprint</span><b>'+escapeHtml(dna.fingerprint?dna.fingerprint.slice(0,24)+'…':'Not available')+'</b></div>'+
+    '<div class="feed-row"><span>Brand impersonation matches</span><b>'+numberText(brand.matches?.length||0)+'</b></div>'+
+    (Array.isArray(brand.matches)&&brand.matches.length?brand.matches.map(match=>'<div class="feed-row"><span>'+escapeHtml(match.brand)+' · '+escapeHtml(match.matchType.replace(/_/g,' '))+'</span><b>'+escapeHtml(match.confidence)+' confidence</b><p>'+escapeHtml(match.evidence)+' Official domains: '+escapeHtml(match.officialDomains.join(', '))+'</p></div>').join(''):'<div class="feed-row"><span>No match in the current curated brand registry. This is not proof that the site is genuine.</span></div>')+
+    '<p class="feed-note">'+escapeHtml(dna.interpretation||'Scam-family classification unavailable.')+'</p>'+
+    '<div class="feed-row"><span>Tracked change status</span><b>'+escapeHtml(String(change.status||'history unavailable').toUpperCase())+'</b></div>'+
+    (change.changedFields?.length?'<div class="feed-row"><span>Changed fields</span><b>'+escapeHtml(change.changedFields.join(', '))+'</b></div>':'')+
+    '<p class="feed-note">'+escapeHtml(change.note||'Change history requires the advanced-intelligence migration and an earlier snapshot.')+'</p>'+
+    '<div class="feed-row"><span>Relationship graph</span><b>'+numberText(graph.nodes?.length||0)+' nodes · '+numberText(graph.edges?.length||0)+' edges</b></div>'+
+    (Array.isArray(graph.edges)&&graph.edges.length?graph.edges.slice(0,12).map(edge=>'<div class="feed-row"><span>'+escapeHtml(edge.from.replace(/^(host|domain|ip|cert|threat|campaign|brand):/,''))+' → '+escapeHtml(edge.to.replace(/^(host|domain|ip|cert|threat|campaign|brand):/,''))+'</span><b>'+escapeHtml(edge.type.replace(/_/g,' '))+' · '+escapeHtml(edge.confidence)+'</b><p>'+escapeHtml(edge.interpretation)+'</p></div>').join(''):'<div class="feed-row"><span>No supported relationships were returned.</span></div>')+
+    '<p class="feed-note">Shared infrastructure, certificates and provider associations do not prove common ownership. Review each relationship before drawing conclusions.</p></div>';
   const neutralAssessment=['business_claims_need_verification','no_known_threat_match','threat_intel_partial','threat_intel_unavailable','insufficient_evidence'].includes(assessment);
+  const category=String(data.riskCategory||(knownThreat?'confirmed_threat':Number(data.score)>=70?'critical':Number(data.score)>=40?'high':Number(data.score)>=20?'suspicious':'low'));
+  const riskLabels={confirmed_threat:'CONFIRMED THREAT',critical:'CRITICAL RISK',high:'HIGH RISK',suspicious:'SUSPICIOUS',low:'LOW RISK'};
+  const riskClasses={confirmed_threat:'critical',critical:'critical',high:'high',suspicious:'guarded',low:'low'};
+  const riskBadgeText=riskLabels[category]||'RISK UNDER REVIEW';
+  const riskBadgeClass=riskClasses[category]||'insufficient';
+
   const badgeClass=knownThreat?'critical':(neutralAssessment?'insufficient':level);
   const labels={
     known_threat_detected:'KNOWN THREAT MATCH',
@@ -198,13 +227,13 @@ function renderResult(data){
     'A missing match is not evidence that the website is safe.';
   resultEl.innerHTML=
     '<div class="result-top"><div><div class="result-domain">'+escapeHtml(data.hostname)+'</div><div class="result-meta">Scan ID · '+escapeHtml(data.scanId)+'</div></div>'+
-    '<div class="risk '+badgeClass+'"><b>'+Number(data.score)+'/100</b><span>'+badgeText+'</span></div></div>'+
-    '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(knownThreat?'#ff7185':neutralAssessment?'#9db0c6':riskColor(level))+'"></div></div>'+
+    '<div class="risk '+riskBadgeClass+'"><b>'+Number(data.score)+'/100</b><span>'+riskBadgeText+'</span><small style="display:block;color:var(--muted);font-size:9px;margin-top:5px">'+escapeHtml(String(data.confidence||'limited').toUpperCase())+' CONFIDENCE</small></div></div>'+
+    '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(category==='confirmed_threat'||category==='critical'||category==='high'?'#ff7185':category==='suspicious'?'#ffc66d':'#69f0c1')+'"></div></div>'+
     '<div class="feed-panel"><strong>Threat intelligence · '+escapeHtml(intelLabel)+'</strong>'+
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
     domainPanel+
-    livePanel+evidencePanel+
+    livePanel+evidencePanel+legitimacyPanel+advancedPanel+
     '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
     (findings.length?findings.map(f=>'<article class="finding"><strong>'+escapeHtml(f.title)+'</strong><span class="severity '+escapeHtml(f.severity)+'">'+escapeHtml(f.severity)+'</span><p>'+escapeHtml(f.evidence)+'</p><p><b>Recommended action:</b> '+escapeHtml(f.recommendation)+'</p></article>').join(''):'<div class="empty-findings">No configured warning patterns or known-feed matches were found. This is not a safety guarantee.</div>')+
     '<div class="limitations">'+(Array.isArray(data.limitations)?data.limitations:[]).map(escapeHtml).join('<br>')+'</div>'+
@@ -212,7 +241,7 @@ function renderResult(data){
   resultEl.style.display='block';
   document.querySelector('#print-report').addEventListener('click',()=>{sessionStorage.setItem('scamDetectorReport',JSON.stringify({...data,scannedAt:new Date().toISOString()}));window.location.href='/report.html';});
   document.querySelector('#copy-summary').addEventListener('click',async()=>{
-    const summary='Scam Detector report\nWebsite: '+data.hostname+'\nScore: '+data.score+'/100\nAssessment: '+badgeText+'\nThreat intelligence: '+intelLabel+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No configured warning patterns or known-feed matches found.')+'\n\nA missing match is not proof that a website is safe.';
+    const summary='Scam Detector report\nWebsite: '+data.hostname+'\nScore: '+data.score+'/100\nRisk category: '+riskBadgeText+'\nAssessment status: '+assessment+'\nThreat intelligence: '+intelLabel+'\nFindings:\n'+(findings.map(f=>'- '+f.title+': '+f.evidence).join('\n')||'No configured warning patterns or known-feed matches found.')+'\n\nA missing match is not proof that a website is safe.';
     try{await navigator.clipboard.writeText(summary);statusEl.textContent='Report summary copied.'}catch{statusEl.textContent='Clipboard unavailable in this browser. Use Print / Save as PDF instead.'}
   });
 }

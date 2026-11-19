@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#081b2c"><title>Website Monitoring · Scam Detector</title>
+<style>
+:root{color-scheme:dark;--bg:#071827;--panel:#10283a;--line:#29465b;--muted:#9bb0c1;--text:#edf6fb;--accent:#66e0bd;--warn:#ffcc75;--danger:#ff8292}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#12354a 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.55 Inter,system-ui,Arial,sans-serif}.wrap{width:min(920px,calc(100% - 32px));margin:0 auto;padding:28px 0 64px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:34px}.brand{font-size:12px;letter-spacing:.16em;font-weight:900;color:var(--accent)}a{color:var(--accent);text-decoration:none}.back{font-size:13px;color:var(--muted)}h1{font-size:clamp(28px,5vw,42px);line-height:1.08;letter-spacing:-.04em;margin:0 0 12px}.lead{color:var(--muted);max-width:700px;margin:0 0 26px}.panel{background:linear-gradient(145deg,#112d41,#0c2233);border:1px solid var(--line);border-radius:16px;padding:22px;margin:18px 0}.panel h2{font-size:16px;margin:0 0 15px}.form{display:grid;grid-template-columns:1fr 150px auto;gap:10px}input,select,button{font:inherit;border-radius:9px;border:1px solid var(--line);padding:12px 13px;background:#081c2c;color:var(--text);min-width:0}button{background:var(--accent);color:#062319;font-weight:800;border:0;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.note,.status{color:var(--muted);font-size:12px}.status{margin-top:12px;min-height:20px}.list{display:grid;gap:12px}.item{border:1px solid var(--line);border-radius:12px;padding:16px;background:#0b2030}.itemhead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.host{font-weight:800;overflow-wrap:anywhere}.pill{font-size:10px;letter-spacing:.08em;font-weight:900;border-radius:20px;padding:4px 9px;background:#1b4051;color:var(--accent);white-space:nowrap}.pill.changed{background:#49391f;color:var(--warn)}.pill.error{background:#482b38;color:var(--danger)}.meta{color:var(--muted);font-size:12px;margin-top:7px}.changes{font-size:12px;color:var(--warn);margin-top:9px}.actions{display:flex;justify-content:flex-end;margin-top:12px}.remove{background:transparent;border:1px solid var(--line);color:var(--muted);padding:7px 10px;font-size:12px}.empty{color:var(--muted);font-size:13px;padding:20px;text-align:center}.disclaimer{border-left:3px solid var(--warn);padding:10px 13px;background:#392f1e55;color:#d8c7a5;font-size:12px;margin-top:18px}@media(max-width:650px){.form{grid-template-columns:1fr}.top{align-items:flex-start}.panel{padding:17px}.itemhead{flex-direction:column}}
+</style></head><body><main class="wrap">
+<header class="top"><div class="brand">SCAM DETECTOR</div><a class="back" href="/">← Back to scanner</a></header>
+<h1>Website change monitoring</h1><p class="lead">Keep watching a domain after its first investigation. Scam Detector periodically rechecks its public page, DNS, TLS, reputation and identity signals, then records what changed.</p>
+<section class="panel"><h2>Add a domain to monitoring</h2><form id="add-form" class="form"><input id="url" type="url" required maxlength="2048" placeholder="https://example.com" aria-label="Website URL"><select id="interval" aria-label="Check interval"><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24" selected>Every 24 hours</option><option value="48">Every 48 hours</option><option value="72">Every 3 days</option><option value="168">Every 7 days</option></select><button id="add" type="submit">Start monitoring</button></form><div id="status" class="status" role="status"></div><p class="note">Requires a Scam Detector account. Up to 20 monitored domains per account. The scanner monitors the hostname at its root URL; URL paths, query strings and fragments are not retained for scheduled checks.</p></section>
+<section class="panel"><h2>Your monitored websites</h2><div id="list" class="list"><div class="empty">Loading monitoring targets…</div></div></section>
+<div class="disclaimer">A change is not automatically a scam. Websites legitimately update content, certificates and hosting. Review the evidence and source timestamps before making a decision.</div>
+</main><script>
+const statusEl=document.getElementById("status"),listEl=document.getElementById("list"),form=document.getElementById("add-form"),addButton=document.getElementById("add");
+const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function date(value){if(!value)return "Not checked yet";const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString():"Unknown"}
+async function load(){
+ const response=await fetch("/api/monitoring",{credentials:"same-origin",headers:{accept:"application/json"}});
+ const data=await response.json();
+ if(response.status===401){listEl.innerHTML='<div class="empty">Sign in to your account to manage monitoring. <a href="/account.html">Open account</a>.</div>';return}
+ if(!response.ok)throw new Error(data.error||"Could not load monitoring.");
+ const monitors=Array.isArray(data.monitors)?data.monitors:[];
+ if(!monitors.length){listEl.innerHTML='<div class="empty">No domains are being monitored yet. Add a website above to create your first baseline.</div>';return}
+ listEl.innerHTML=monitors.map(item=>{
+  const change=item.change_summary||{};const status=change.status||"baseline";
+  const badge=status==="changed"?"CHANGES DETECTED":status==="history_unavailable"?"HISTORY UNAVAILABLE":status==="unchanged"?"NO CHANGE":"BASELINE";
+  const cls=status==="changed"?"changed":item.last_error?"error":"";
+  const fields=Array.isArray(change.changedFields)?change.changedFields:[];
+  return '<article class="item"><div class="itemhead"><div class="host">'+escapeHtml(item.hostname)+'</div><span class="pill '+cls+'">'+escapeHtml(badge)+'</span></div><div class="meta">Checks every '+Number(item.interval_hours)+' hours · Next check: '+escapeHtml(date(item.next_check_at))+'</div><div class="meta">Last check: '+escapeHtml(date(item.last_checked_at))+'</div>'+
+   (fields.length?'<div class="changes">Changed: '+fields.map(escapeHtml).join(", ")+'</div>':'')+
+   (item.last_error?'<div class="changes">Last error: '+escapeHtml(item.last_error)+'</div>':'')+
+   '<div class="actions"><button class="remove" data-remove="'+escapeHtml(item.id)+'">Stop monitoring</button></div></article>';
+ }).join("");
+}
+form.addEventListener("submit",async event=>{
+ event.preventDefault();addButton.disabled=true;statusEl.textContent="Enabling monitoring…";
+ try{
+  const response=await fetch("/api/monitoring",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","accept":"application/json"},body:JSON.stringify({url:document.getElementById("url").value,intervalHours:Number(document.getElementById("interval").value)})});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not enable monitoring.");
+  statusEl.textContent=data.message||"Monitoring enabled.";document.getElementById("url").value="";await load();
+ }catch(error){statusEl.textContent=error instanceof Error?error.message:"Request failed."}
+ finally{addButton.disabled=false}
+});
+listEl.addEventListener("click",async event=>{
+ const button=event.target.closest("[data-remove]");if(!button)return;
+ button.disabled=true;
+ try{const response=await fetch("/api/monitoring?id="+encodeURIComponent(button.dataset.remove),{method:"DELETE",credentials:"same-origin",headers:{accept:"application/json"}});const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not stop monitoring.");statusEl.textContent="Monitoring stopped.";await load()}
+ catch(error){statusEl.textContent=error instanceof Error?error.message:"Request failed.";button.disabled=false}
+});
+load().catch(error=>{listEl.innerHTML='<div class="empty">'+escapeHtml(error.message)+'</div>'});
+</script></body></html>

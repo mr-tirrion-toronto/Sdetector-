@@ -21,7 +21,25 @@
 - Firecrawl receives only the public hostname and path. Query strings, fragments, embedded credentials, browser cookies and authentication headers are not forwarded. Private/reserved DNS targets and non-standard ports are not sent to the provider.
 - Redirect reporting compares the final URL reported by Firecrawl with the submitted hostname. It is not a complete network-level redirect trace.
 
-#### Business legitimacy and earnings-claim analysis\n- Detects public-page claims about paid chatting, advertised daily earnings, referral rewards, payout totals/testimonials, and possible upfront, recharge-to-earn or pay-to-withdraw language.\n- Separates neutral marketing claims from high-risk advance-payment signals; a paid-chat claim alone is not treated as fraud.\n- Explicitly marks payouts as not independently verified from public page content. This scanner does not create accounts, deposit funds or simulate withdrawals.\n- These explainable rules are not an AI verdict. Absence of a signal is not proof of legitimacy; operator identity, contracts, real customers and actual payouts require independent verification.\n\n## Accounts and API keys
+#### Business legitimacy and earnings-claim analysis\n- Detects public-page claims about paid chatting, advertised daily earnings, referral rewards, payout totals/testimonials, and possible upfront, recharge-to-earn or pay-to-withdraw language.\n- Separates neutral marketing claims from high-risk advance-payment signals; a paid-chat claim alone is not treated as fraud.\n- Explicitly marks payouts as not independently verified from public page content. This scanner does not create accounts, deposit funds or simulate withdrawals.\n- These explainable rules are not an AI verdict. Absence of a signal is not proof of legitimacy; operator identity, contracts, real customers and actual payouts require independent verification.\n\n## Advanced intelligence
+
+- **Scam DNA:** deterministic, versioned evidence fingerprints that classify observed patterns such as known threats, brand impersonation, credential harvesting and advance-fee earning claims. A fingerprint is not malware attribution and does not prove two domains share an operator.
+- **Brand impersonation:** curated official-domain registry checks for hostname lookalikes, brand tokens and credential-oriented page-title matches. Registry coverage is limited and every match is presented as a lead with expected official domains.
+- **Relationship graph:** evidence-backed nodes and edges for DNS answers, TLS certificate names, provider-related domains, campaign labels and possible brand impersonation. Shared infrastructure is explicitly not treated as ownership.
+- **Change monitoring:** authenticated users can add up to 20 domains at `/monitoring.html`, choose a 6–168 hour interval, and review scheduled snapshots and changed fields. Monitoring checks the root hostname, not the original URL path or query string.
+- **Snapshot history:** repeated scans and scheduled checks compare page title, final hostname, HTTP status, DNS addresses, TLS issuer/expiry/SANs, registration age, page indicators, threat-feed coverage, brand matches and Scam DNA.
+- **Evidence provenance:** the report separates provider findings, static heuristics, official registry discovery links and manual checks. It never labels a company or payout as verified when the underlying registry/payment evidence has not actually been checked.
+- **Legitimacy assessment:** a separate evidence checklist for threat reputation, brand/domain consistency, TLS hostname coverage, RDAP registration, DNS, public operator disclosures, business/payment claims, official regulator records and actual payouts. It deliberately never certifies a business as legitimate from technical signals alone.
+
+### Advanced intelligence deployment
+
+1. Apply `migrations/0007_advanced_intelligence_and_monitoring.sql` to the production Neon project after reviewing the migration.
+2. Deploy the updated Cloudflare Pages Functions and public assets.
+3. Redeploy `feed-worker`. Its existing `SYNC_SECRET` must match Pages `FEED_SYNC_SECRET`; the same protected worker now triggers the scheduled website-monitor runner.
+4. Confirm the first monitoring target can be added by a signed-in account and that a scheduled snapshot appears in `/monitoring.html`.
+5. Change history is unavailable until migration 0007 has been applied. The first observation creates a baseline; later observations show changed fields.
+
+## Accounts and API keys
 - Signup, login and logout.
 - Salted PBKDF2-SHA256 password hashes and secure HttpOnly session cookies.
 - Private per-user scan history.

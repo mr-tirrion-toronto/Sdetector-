@@ -24,6 +24,17 @@ describe("buildIndependentEvidence", () => {
     expect(result.sources.find(source => source.id === "companies-house")?.url).toContain(encodeURIComponent("Example Chat Limited"));
   });
 
+  it("adds official Tanzania financial and telecom regulator sources only for relevant claims", () => {
+    const bank = buildIndependentEvidence({ hostname: "example-bank.co.tz", pageTitle: "Online Bank Loans and Savings" });
+    const telecom = buildIndependentEvidence({ hostname: "mobile-example.co.tz", pageTitle: "Mobile network and SMS service" });
+    const ordinary = buildIndependentEvidence({ hostname: "example.com", pageTitle: "A personal blog" });
+    expect(bank.sources.map(source => source.id)).toContain("bot-licensed-financial-institutions");
+    expect(bank.sources.map(source => source.id)).toContain("bot-financial-consumer-alert");
+    expect(telecom.sources.map(source => source.id)).toContain("tcra-licensed-providers");
+    expect(ordinary.sources.map(source => source.id)).not.toContain("bot-financial-consumer-alert");
+    expect(ordinary.sources.map(source => source.id)).not.toContain("tcra-licensed-providers");
+  });
+
   it("sanitizes related domains and labels technical relationships as leads only", () => {
     const result = buildIndependentEvidence({
       hostname: "example.com",
