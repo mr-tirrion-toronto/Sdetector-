@@ -40,6 +40,6 @@ export async function fingerprintSnapshot(snapshot:WebsiteSnapshot):Promise<stri
 export async function compareSnapshots(current:WebsiteSnapshot,previous:WebsiteSnapshot|null,checkedAt=new Date().toISOString()):Promise<ChangeSummary>{
  const fingerprint=await fingerprintSnapshot(current);
  if(!previous)return {status:"baseline",fingerprint,previousFingerprint:null,changedFields:[],previousCheckedAt:null,checkedAt,note:"Baseline snapshot recorded. Future scheduled checks can compare against this observation."};
- const changedFields=(Object.keys(current) as Array<keyof WebsiteSnapshot>).filter(key=>JSON.stringify(current[key])!==JSON.stringify(previous[key])).map(String);
+ const changedFields=(Object.keys(current) as Array<keyof WebsiteSnapshot>).filter(key=>key!=="domainAgeDays"&&JSON.stringify(current[key])!==JSON.stringify(previous[key])).map(String);
  return {status:changedFields.length?"changed":"unchanged",fingerprint,previousFingerprint:await fingerprintSnapshot(previous),changedFields,previousCheckedAt:null,checkedAt,note:changedFields.length?"Website observations differ from the previous stored snapshot. Review each changed field; a change is not automatically malicious.":"No tracked fields changed compared with the previous stored snapshot."};
 }
