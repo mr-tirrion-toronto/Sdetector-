@@ -4,10 +4,10 @@ import { getDomain } from "tldts";
 export const BRAND_REGISTRY_VERSION = "2026-11-19.1";
 interface BrandEntry { name:string; domains:string[]; aliases:string[] }
 const BRANDS:BrandEntry[] = [
-  {name:"Google",domains:["google.com","google.co.tz"],aliases:["google","gmail","youtube"]},
+  {name:"Google",domains:["google.com"],aliases:["google","gmail","youtube"]},
   {name:"Microsoft",domains:["microsoft.com","microsoftonline.com","live.com","office.com"],aliases:["microsoft","outlook","office365","office"]},
   {name:"Apple",domains:["apple.com","icloud.com"],aliases:["apple","icloud"]},
-  {name:"Amazon",domains:["amazon.com","amazon.co.uk","amazon.co.tz"],aliases:["amazon"]},
+  {name:"Amazon",domains:["amazon.com","amazon.co.uk"],aliases:["amazon"]},
   {name:"PayPal",domains:["paypal.com"],aliases:["paypal"]},
   {name:"Meta",domains:["meta.com","facebook.com","instagram.com","whatsapp.com"],aliases:["facebook","instagram","whatsapp","meta"]},
   {name:"Netflix",domains:["netflix.com"],aliases:["netflix"]},
