@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.scan_intelligence (
   snapshot JSONB NOT NULL,
   scam_dna JSONB NOT NULL,
   brand_assessment JSONB NOT NULL,
+  legitimacy_assessment JSONB NOT NULL,
   relationship_graph JSONB NOT NULL,
   change_summary JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
