@@ -174,6 +174,12 @@ function renderResult(data){
     '<p class="feed-note">'+escapeHtml(relationship.interpretation||'Technical relationships are leads only and do not prove common ownership.')+'</p>'+
     (Array.isArray(evidence.limitations)?'<p class="feed-note">'+evidence.limitations.map(escapeHtml).join(' ')+'</p>':'')+'</div>';
   const neutralAssessment=['business_claims_need_verification','no_known_threat_match','threat_intel_partial','threat_intel_unavailable','insufficient_evidence'].includes(assessment);
+  const category=String(data.riskCategory||(knownThreat?'confirmed_threat':Number(data.score)>=70?'critical':Number(data.score)>=40?'high':Number(data.score)>=20?'suspicious':'low'));
+  const riskLabels={confirmed_threat:'CONFIRMED THREAT',critical:'CRITICAL RISK',high:'HIGH RISK',suspicious:'SUSPICIOUS',low:'LOW RISK'};
+  const riskClasses={confirmed_threat:'critical',critical:'critical',high:'high',suspicious:'guarded',low:'low'};
+  const riskBadgeText=riskLabels[category]||'RISK UNDER REVIEW';
+  const riskBadgeClass=riskClasses[category]||'insufficient';
+
   const badgeClass=knownThreat?'critical':(neutralAssessment?'insufficient':level);
   const labels={
     known_threat_detected:'KNOWN THREAT MATCH',
@@ -198,8 +204,8 @@ function renderResult(data){
     'A missing match is not evidence that the website is safe.';
   resultEl.innerHTML=
     '<div class="result-top"><div><div class="result-domain">'+escapeHtml(data.hostname)+'</div><div class="result-meta">Scan ID · '+escapeHtml(data.scanId)+'</div></div>'+
-    '<div class="risk '+badgeClass+'"><b>'+Number(data.score)+'/100</b><span>'+badgeText+'</span></div></div>'+
-    '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(knownThreat?'#ff7185':neutralAssessment?'#9db0c6':riskColor(level))+'"></div></div>'+
+    '<div class="risk '+riskBadgeClass+'"><b>'+Number(data.score)+'/100</b><span>'+riskBadgeText+'</span><small style="display:block;color:var(--muted);font-size:9px;margin-top:5px">'+escapeHtml(String(data.confidence||'limited').toUpperCase())+' CONFIDENCE</small></div></div>'+
+    '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(category==='confirmed_threat'||category==='critical'||category==='high'?'#ff7185':category==='suspicious'?'#ffc66d':'#69f0c1')+'"></div></div>'+
     '<div class="feed-panel"><strong>Threat intelligence · '+escapeHtml(intelLabel)+'</strong>'+
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
