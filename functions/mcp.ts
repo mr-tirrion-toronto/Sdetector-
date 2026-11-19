@@ -223,7 +223,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       return rpcError(id, -32602, "Invalid tool name or arguments.");
     }
     const result = await callTool(name, args as Record<string, unknown>, request, env);
-    const payload = await result.json();
+    const payload = await result.json() as { result?: unknown };
     return rpc(id, payload.result);
   }
 
