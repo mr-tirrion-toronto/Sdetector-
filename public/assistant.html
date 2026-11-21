@@ -50,7 +50,7 @@ form.addEventListener('submit',async e=>{
   const response=await fetch('/api/ai/assistant',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},credentials:'same-origin',body:JSON.stringify({question:q,...(scanId?{scan_id:scanId}:{})})});
   const data=await response.json();if(!response.ok)throw new Error(data.error||'The assistant could not answer.');
   pending.textContent=data.answer;
- }catch(error){pending.textContent=error instanceof Error?error.message:'Something went wrong.';status.textContent='If you are not signed in, open Account & API and sign in first. If this scan was created before signing in, run it again while signed in.'}
+ }catch(error){pending.textContent=error instanceof Error?error.message:'Something went wrong.';status.textContent=(error instanceof Error && /sign in|account api key|authentication/i.test(error.message))?'Open Account & API and confirm that you are signed in. Scans created before sign-in must be run again while signed in.':'This is an AI provider or quota issue, not necessarily a sign-in problem. A secondary provider can take over when GEMINI_API_KEY is configured in Cloudflare.'}
  finally{send.disabled=false;send.textContent='Ask assistant →';question.focus()}
 });
 </script>
