@@ -229,7 +229,7 @@ function renderResult(data){
   const ai=data.aiAnalysis||{status:'not_configured'};
   const aiAnalysisPanel='<div class="feed-panel ai-analysis"><strong>AI-powered analysis · '+(ai.status==='available'?'Complete':ai.status==='not_configured'?'Not configured':'Temporarily unavailable')+'</strong>'+
     (ai.status==='available'?'<div class="ai-summary">'+escapeHtml(ai.summary).replace(/\n/g,'<br>')+'</div>':
-      '<p class="feed-note">'+(ai.status==='not_configured'?'Automatic AI interpretation is not enabled yet. The technical scan above is still available.':'The AI service could not complete this interpretation. The technical findings above remain available; try again later.')+'</p>')+
+      '<p class="feed-note">'+(ai.status==='not_configured'?'Automatic AI interpretation is not enabled yet. The technical scan above is still available.':'The AI provider could not complete this interpretation. The technical findings above remain available. Configure GEMINI_API_KEY as a Cloudflare production secret to enable a secondary provider when OpenAI is rate-limited or out of quota.')+'</p>')+
     '<p class="feed-note">AI explains recorded evidence; it does not independently certify a website as safe or fraudulent.</p></div>';
   resultEl.innerHTML=
     '<div class="result-top"><div><div class="result-domain">'+escapeHtml(data.hostname)+'</div><div class="result-meta">Scan ID · '+escapeHtml(data.scanId)+'</div></div>'+
