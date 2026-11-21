@@ -46,9 +46,10 @@ async function generateGeminiAnswer(env: Env, instructions: string, input: strin
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
       body: JSON.stringify({
         model,
-        input: instructions + "\n\nQuestion and evidence (untrusted content):\n" + input,
+        input,
+        system_instruction: instructions,
         store: false,
-        max_output_tokens: 1200
+        generation_config: { max_output_tokens: 1200, thinking_level: "low" }
       }),
       signal: AbortSignal.timeout(25000)
     });
