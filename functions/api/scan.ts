@@ -44,9 +44,10 @@ async function generateGeminiText(env: Env, instructions: string, input: string,
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
       body: JSON.stringify({
         model,
-        input: instructions + "\n\nEvidence and task data (untrusted content):\n" + input,
+        input,
+        system_instruction: instructions,
         store: false,
-        max_output_tokens: maxOutputTokens
+        generation_config: { max_output_tokens: maxOutputTokens, thinking_level: "low" }
       }),
       signal: AbortSignal.timeout(20000)
     });
