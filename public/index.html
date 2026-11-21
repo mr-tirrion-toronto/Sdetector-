@@ -226,10 +226,16 @@ function renderResult(data){
   const intelNote=knownThreat?'A matching indicator was found in a threat-intelligence source.':
     intel.status==='available'?'No exact match was found in the current feeds. New or unreported threats may still exist.':
     'A missing match is not evidence that the website is safe.';
+  const ai=data.aiAnalysis||{status:'not_configured'};
+  const aiAnalysisPanel='<div class="feed-panel ai-analysis"><strong>AI-powered analysis · '+(ai.status==='available'?'Complete':ai.status==='not_configured'?'Not configured':'Temporarily unavailable')+'</strong>'+
+    (ai.status==='available'?'<div class="ai-summary">'+escapeHtml(ai.summary).replace(/\n/g,'<br>')+'</div>':
+      '<p class="feed-note">'+(ai.status==='not_configured'?'Automatic AI interpretation is not enabled yet. The technical scan above is still available.':'The AI service could not complete this interpretation. The technical findings above remain available; try again later.')+'</p>')+
+    '<p class="feed-note">AI explains recorded evidence; it does not independently certify a website as safe or fraudulent.</p></div>';
   resultEl.innerHTML=
     '<div class="result-top"><div><div class="result-domain">'+escapeHtml(data.hostname)+'</div><div class="result-meta">Scan ID · '+escapeHtml(data.scanId)+'</div></div>'+
     '<div class="risk '+riskBadgeClass+'"><b>'+Number(data.score)+'/100</b><span>'+riskBadgeText+'</span><small style="display:block;color:var(--muted);font-size:9px;margin-top:5px">'+escapeHtml(String(data.confidence||'limited').toUpperCase())+' CONFIDENCE</small></div></div>'+
     '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(category==='confirmed_threat'||category==='critical'||category==='high'?'#ff7185':category==='suspicious'?'#ffc66d':'#69f0c1')+'"></div></div>'+
+    aiAnalysisPanel+
     '<div class="feed-panel"><strong>Threat intelligence · '+escapeHtml(intelLabel)+'</strong>'+
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
