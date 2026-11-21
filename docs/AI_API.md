@@ -16,7 +16,7 @@ In Cloudflare Dashboard, open **Workers & Pages → mr-tirrion-scam-detector →
 Optional non-secret variable: `OPENAI_MODEL`. If omitted, the assistant uses `gpt-4.1-mini`.
 
 ## Secondary AI provider (recommended)
-The backend supports Google Gemini as a fallback when OpenAI is rate-limited, out of quota, or temporarily unavailable. Add a Google AI Studio API key as a Cloudflare Pages **Production secret** named `GEMINI_API_KEY`. Do not put this key in GitHub, browser code, or chat. Optional non-secret variable: `GEMINI_MODEL`; the default is `gemini-2.5-flash`.
+The backend supports Google Gemini as a fallback when OpenAI is rate-limited, out of quota, or temporarily unavailable. Add a Google AI Studio API key as a Cloudflare Pages **Production secret** named `GEMINI_API_KEY`. Do not put this key in GitHub, browser code, or chat. Optional non-secret variable: `GEMINI_MODEL`; the default is `gemini-3.8-flash`.
 
 The fallback uses the same evidence-only safety instructions and sends no credentials other than the provider key in the server-side request header. OpenAI remains the primary provider; Gemini is used only when needed. Separate API providers have separate billing and quota policies.
 
