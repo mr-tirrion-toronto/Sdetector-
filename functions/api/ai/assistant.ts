@@ -264,14 +264,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   if (!response.ok) {
     const requestId = response.headers.get("x-request-id");
-    console.error("OPENAI_RESPONSE_ERROR", response.status, requestId ?? "no-request-id");
+    let providerErrorCode = "unknown";
+    try {
+      const errorPayload: any = await response.clone().json();
+      providerErrorCode = String(errorPayload?.error?.code ?? errorPayload?.error?.type ?? "unknown").slice(0, 80);
+    } catch { /* Provider error bodies are optional; never log raw response content. */ }
+    console.error("OPENAI_RESPONSE_ERROR", response.status, providerErrorCode, requestId ?? "no-request-id");
     const fallback = await generateGeminiAnswer(env, instructions, JSON.stringify(modelInput));
     if (fallback) return json({ answer: fallback, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-3.8-flash", provider: "gemini", usage: null });
     if (response.status === 401 || response.status === 403) {
       return json({ error: "The configured OpenAI credential was rejected. Check the Cloudflare secret and its project access." }, 503);
     }
     if (response.status === 429) {
-      return json({ error: env.GEMINI_API_KEY ? "OpenAI usage is limited and the secondary AI provider could not complete the request." : "OpenAI returned HTTP 429 (rate limit or exhausted API quota). No secondary AI provider is configured; add GEMINI_API_KEY in Cloudflare to enable failover." }, 503);
+      const quotaExhausted = providerErrorCode === "insufficient_quota";
+      return json({ error: quotaExhausted
+        ? (env.GEMINI_API_KEY ? "OpenAI API quota or project spending limit is exhausted, and the secondary provider could not complete this request." : "OpenAI API quota or project spending limit is exhausted. Add GEMINI_API_KEY in Cloudflare to enable a separate-provider fallback.")
+        : (env.GEMINI_API_KEY ? "OpenAI rate limit was reached, and the secondary provider could not complete this request." : "OpenAI rate limit was reached. Add GEMINI_API_KEY in Cloudflare to enable a separate-provider fallback.") }, 503);
     }
     return json({ error: "The AI service returned an error. Please try again later." }, 503);
   }
