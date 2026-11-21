@@ -44,24 +44,32 @@ async function generateGeminiAnswer(env: Env, instructions: string, input: strin
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        model,
-        input,
-        system_instruction: instructions,
-        store: false,
-        generation_config: { max_output_tokens: 1200, thinking_level: "low" }
-      }),
+      body: JSON.stringify({ model, input, system_instruction: instructions, store: false,
+        generation_config: { max_output_tokens: 1200, thinking_level: "low" } }),
       signal: AbortSignal.timeout(25000)
     });
     if (!response.ok) {
-      console.error("GEMINI_ASSISTANT_ERROR", response.status, response.headers.get("x-request-id") ?? "no-request-id");
+      let providerErrorCode = "unknown";
+      try {
+        const errorPayload: any = await response.clone().json();
+        providerErrorCode = String(errorPayload?.error?.status ?? errorPayload?.error?.code ?? errorPayload?.error?.message ?? "unknown").slice(0, 80);
+      } catch { /* Never log provider response bodies or secrets. */ }
+      console.error("GEMINI_ASSISTANT_ERROR", response.status, providerErrorCode, response.headers.get("x-request-id") ?? "no-request-id");
       return null;
     }
     const payload: any = await response.json();
-    const answer = (Array.isArray(payload.steps) ? payload.steps : [])
-      .filter((step: any) => step?.type === "model_output" && Array.isArray(step.content))
-      .flatMap((step: any) => step.content.filter((part: any) => part?.type === "text" && typeof part.text === "string").map((part: any) => part.text))
-      .join("\n").trim();
+    let answer = typeof payload.output_text === "string" ? payload.output_text.trim() : "";
+    if (!answer && Array.isArray(payload.steps)) {
+      answer = payload.steps.filter((step: any) => step?.type === "model_output" && Array.isArray(step.content))
+        .flatMap((step: any) => step.content.filter((part: any) => part?.type === "text" && typeof part.text === "string").map((part: any) => part.text))
+        .join("\n").trim();
+    }
+    if (!answer && Array.isArray(payload.output)) {
+      answer = payload.output.flatMap((item: any) => Array.isArray(item?.content)
+        ? item.content.filter((part: any) => (part?.type === "output_text" || part?.type === "text") && typeof part.text === "string").map((part: any) => part.text) : [])
+        .join("\n").trim();
+    }
+    if (!answer) console.error("GEMINI_ASSISTANT_EMPTY_RESPONSE", typeof payload.status === "string" ? payload.status : "unknown");
     return answer || null;
   } catch (error) {
     console.error("GEMINI_ASSISTANT_FAILED", error instanceof Error ? error.name : "UnknownError");
@@ -131,13 +139,6 @@ async function loadOwnedScan(sql: any, scanId: string, userId: string): Promise<
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.DATABASE_URL) return json({ error: "AI assistant storage is temporarily unavailable." }, 503);
-  if (!env.OPENAI_API_KEY) {
-    return json({
-      error: "AI assistant is not configured yet.",
-      setup: "Add OPENAI_API_KEY as a Cloudflare Pages production secret, then redeploy."
-    }, 503);
-  }
-
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().includes("application/json")) {
     return json({ error: "Content-Type must be application/json." }, 415);
@@ -238,6 +239,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     service_context: serviceContext
   };
 
+  if (!env.OPENAI_API_KEY) {
+    const answer = await generateGeminiAnswer(env, instructions, JSON.stringify(modelInput));
+    if (answer) return json({ answer, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-3.8-flash", provider: "gemini", usage: null });
+    return json({ error: env.GEMINI_API_KEY ? "The configured Gemini provider could not complete this request." : "No AI provider is configured. Add GEMINI_API_KEY or OPENAI_API_KEY as a Cloudflare production secret." }, 503);
+  }
+
   let response: Response;
   try {
     response = await fetch("https://api.openai.com/v1/responses", {
@@ -291,7 +298,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return json({ error: "The AI service returned an unreadable response." }, 502);
   }
   const answer = readOutputText(payload);
-  if (!answer) return json({ error: "The AI service did not return an answer." }, 502);
+  if (!answer) {
+    const fallback = await generateGeminiAnswer(env, instructions, JSON.stringify(modelInput));
+    if (fallback) return json({ answer: fallback, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-3.8-flash", provider: "gemini", usage: null });
+    return json({ error: "The AI providers did not return a usable answer. Please try again later." }, 503);
+  }
 
   return json({
     answer,
