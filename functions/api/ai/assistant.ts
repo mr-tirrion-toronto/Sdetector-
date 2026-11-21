@@ -39,7 +39,7 @@ type ScanEvidence = {
 
 async function generateGeminiAnswer(env: Env, instructions: string, input: string): Promise<string | null> {
   if (!env.GEMINI_API_KEY) return null;
-  const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = env.GEMINI_MODEL || "gemini-3.8-flash";
   try {
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
       method: "POST",
@@ -255,7 +255,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch (error) {
     console.error("OPENAI_REQUEST_FAILED", error instanceof Error ? error.name : "UnknownError");
     const fallback = await generateGeminiAnswer(env, instructions, JSON.stringify(modelInput));
-    if (fallback) return json({ answer: fallback, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-2.5-flash", provider: "gemini", usage: null });
+    if (fallback) return json({ answer: fallback, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-3.8-flash", provider: "gemini", usage: null });
     return json({ error: env.GEMINI_API_KEY ? "Both AI providers are temporarily unavailable." : "OpenAI could not be reached and no secondary AI provider is configured. Add GEMINI_API_KEY in Cloudflare to enable automatic fallback." }, 503);
   }
 
@@ -263,7 +263,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const requestId = response.headers.get("x-request-id");
     console.error("OPENAI_RESPONSE_ERROR", response.status, requestId ?? "no-request-id");
     const fallback = await generateGeminiAnswer(env, instructions, JSON.stringify(modelInput));
-    if (fallback) return json({ answer: fallback, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-2.5-flash", provider: "gemini", usage: null });
+    if (fallback) return json({ answer: fallback, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-3.8-flash", provider: "gemini", usage: null });
     if (response.status === 401 || response.status === 403) {
       return json({ error: "The configured OpenAI credential was rejected. Check the Cloudflare secret and its project access." }, 503);
     }
