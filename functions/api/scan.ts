@@ -39,13 +39,14 @@ async function generateGeminiText(env: Env, instructions: string, input: string,
   if (!env.GEMINI_API_KEY) return null;
   const model = env.GEMINI_MODEL || "gemini-3.8-flash";
   try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: instructions }] },
-        contents: [{ role: "user", parts: [{ text: input }] }],
-        generationConfig: { maxOutputTokens, temperature: 0.2 }
+        model,
+        input: instructions + "\n\nEvidence and task data (untrusted content):\n" + input,
+        store: false,
+        max_output_tokens: maxOutputTokens
       }),
       signal: AbortSignal.timeout(20000)
     });
@@ -54,9 +55,10 @@ async function generateGeminiText(env: Env, instructions: string, input: string,
       return null;
     }
     const payload: any = await response.json();
-    const text = (payload.candidates?.[0]?.content?.parts ?? [])
-      .filter((part: any) => typeof part.text === "string")
-      .map((part: any) => part.text).join("\\n").trim();
+    const text = (Array.isArray(payload.steps) ? payload.steps : [])
+      .filter((step: any) => step?.type === "model_output" && Array.isArray(step.content))
+      .flatMap((step: any) => step.content.filter((part: any) => part?.type === "text" && typeof part.text === "string").map((part: any) => part.text))
+      .join("\n").trim();
     return text || null;
   } catch (error) {
     console.error("GEMINI_FALLBACK_FAILED", error instanceof Error ? error.name : "UnknownError");
