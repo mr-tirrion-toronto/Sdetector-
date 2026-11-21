@@ -41,13 +41,14 @@ async function generateGeminiAnswer(env: Env, instructions: string, input: strin
   if (!env.GEMINI_API_KEY) return null;
   const model = env.GEMINI_MODEL || "gemini-3.8-flash";
   try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: instructions }] },
-        contents: [{ role: "user", parts: [{ text: input }] }],
-        generationConfig: { maxOutputTokens: 1200, temperature: 0.2 }
+        model,
+        input: instructions + "\n\nQuestion and evidence (untrusted content):\n" + input,
+        store: false,
+        max_output_tokens: 1200
       }),
       signal: AbortSignal.timeout(25000)
     });
@@ -56,9 +57,10 @@ async function generateGeminiAnswer(env: Env, instructions: string, input: strin
       return null;
     }
     const payload: any = await response.json();
-    const answer = (payload.candidates?.[0]?.content?.parts ?? [])
-      .filter((part: any) => typeof part.text === "string")
-      .map((part: any) => part.text).join("\\n").trim();
+    const answer = (Array.isArray(payload.steps) ? payload.steps : [])
+      .filter((step: any) => step?.type === "model_output" && Array.isArray(step.content))
+      .flatMap((step: any) => step.content.filter((part: any) => part?.type === "text" && typeof part.text === "string").map((part: any) => part.text))
+      .join("\n").trim();
     return answer || null;
   } catch (error) {
     console.error("GEMINI_ASSISTANT_FAILED", error instanceof Error ? error.name : "UnknownError");
