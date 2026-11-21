@@ -5,6 +5,8 @@ interface Env {
   DATABASE_URL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
 }
 
 const BODY_LIMIT = 8192;
@@ -33,6 +35,36 @@ type ScanEvidence = {
     change_summary?: unknown;
   } | null;
 };
+
+
+async function generateGeminiAnswer(env: Env, instructions: string, input: string): Promise<string | null> {
+  if (!env.GEMINI_API_KEY) return null;
+  const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+  try {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: instructions }] },
+        contents: [{ role: "user", parts: [{ text: input }] }],
+        generationConfig: { maxOutputTokens: 1200, temperature: 0.2 }
+      }),
+      signal: AbortSignal.timeout(25000)
+    });
+    if (!response.ok) {
+      console.error("GEMINI_ASSISTANT_ERROR", response.status, response.headers.get("x-request-id") ?? "no-request-id");
+      return null;
+    }
+    const payload: any = await response.json();
+    const answer = (payload.candidates?.[0]?.content?.parts ?? [])
+      .filter((part: any) => typeof part.text === "string")
+      .map((part: any) => part.text).join("\\n").trim();
+    return answer || null;
+  } catch (error) {
+    console.error("GEMINI_ASSISTANT_FAILED", error instanceof Error ? error.name : "UnknownError");
+    return null;
+  }
+}
 
 function readOutputText(payload: any): string {
   if (typeof payload?.output_text === "string") return payload.output_text.trim();
@@ -222,16 +254,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     });
   } catch (error) {
     console.error("OPENAI_REQUEST_FAILED", error instanceof Error ? error.name : "UnknownError");
-    return json({ error: "The AI provider could not be reached. Please try again shortly." }, 503);
+    const fallback = await generateGeminiAnswer(env, instructions, JSON.stringify(modelInput));
+    if (fallback) return json({ answer: fallback, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-2.5-flash", provider: "gemini", usage: null });
+    return json({ error: env.GEMINI_API_KEY ? "Both AI providers are temporarily unavailable." : "OpenAI could not be reached and no secondary AI provider is configured. Add GEMINI_API_KEY in Cloudflare to enable automatic fallback." }, 503);
   }
 
   if (!response.ok) {
     const requestId = response.headers.get("x-request-id");
     console.error("OPENAI_RESPONSE_ERROR", response.status, requestId ?? "no-request-id");
+    const fallback = (response.status === 429 || response.status >= 500)
+      ? await generateGeminiAnswer(env, instructions, JSON.stringify(modelInput)) : null;
+    if (fallback) return json({ answer: fallback, scan_id: evidence?.id ?? null, model: env.GEMINI_MODEL || "gemini-2.5-flash", provider: "gemini", usage: null });
     if (response.status === 401 || response.status === 403) {
       return json({ error: "The configured OpenAI credential was rejected. Check the Cloudflare secret and its project access." }, 503);
     }
-    if (response.status === 429) return json({ error: "OpenAI rate or usage limit reached. Please try again later." }, 503);
+    if (response.status === 429) {
+      return json({ error: env.GEMINI_API_KEY ? "OpenAI usage is limited and the secondary AI provider could not complete the request." : "OpenAI returned HTTP 429 (rate limit or exhausted API quota). No secondary AI provider is configured; add GEMINI_API_KEY in Cloudflare to enable failover." }, 503);
+    }
     return json({ error: "The AI service returned an error. Please try again later." }, 503);
   }
 
