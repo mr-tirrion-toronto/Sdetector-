@@ -21,10 +21,10 @@
 <article class="panel"><h2>Risk distribution</h2><div id="risk"></div></article>
 <article class="panel"><h2>Scanning activity · 7 days</h2><div class="chart" id="trend"></div></article>
 <article class="panel"><h2>Threat-intelligence feeds</h2><div id="feeds"></div></article>
-<article class="panel"><h2>How to read this dashboard</h2><p class="empty">Risk categories reflect this scanner's configured signals and evidence. They are not a calibrated probability of fraud. A low score or missing threat-feed match does not prove a website is safe.</p><p class="empty">This public dashboard exposes aggregate counts only. It does not expose submitted URLs, scan histories or report contents.</p></article>
+<article class="panel"><h2>How to read this dashboard</h2><p class="empty">Risk categories reflect this scanner's configured signals and evidence. They are not a calibrated probability of fraud. A low score or missing threat-feed match does not prove a website is safe.</p><p class="empty">This dashboard shows statistics for your signed-in account only. Threat-feed health is shared platform status; other accounts’ scans, submitted URLs and reports are not shown.</p></article>
 </section>
 <div class="note"><b>Evidence boundary:</b> dashboard figures summarize scans recorded by Scam Detector. They do not represent all websites on the internet or prove that any website is safe.</div>
-<footer>SCAM DETECTOR · Created by Mr Tirrion · Aggregated platform statistics only</footer>
+<footer>SCAM DETECTOR · Created by Mr Tirrion · Private account statistics</footer>
 </div>
 <script>
 const toggle=document.getElementById("nav-toggle");if(toggle)toggle.addEventListener("click",()=>{const nav=document.getElementById("dash-nav");const open=nav.classList.toggle("open");toggle.setAttribute("aria-expanded",String(open))});
