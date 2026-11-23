@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101212">
+<title>Administrator SOC Dashboard · Scam Detector</title>
+<style>
+:root{color-scheme:dark;--bg:#101212;--side:#151818;--panel:#171b1b;--panel2:#1b2020;--line:#293130;--text:#e9eeee;--muted:#8c9996;--teal:#20d6b2;--teal2:#0f947e;--red:#f05252;--orange:#f3a83b;--yellow:#e6d94a;--green:#37c98a;--blue:#61a9e8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,select{font:inherit}button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+.app{min-height:100vh;display:grid;grid-template-columns:84px minmax(0,1fr)}.sidebar{background:#141818;border-right:1px solid var(--line);padding:18px 10px;display:flex;flex-direction:column;align-items:center;gap:14px}.logo{width:43px;height:43px;border:1px solid #3a5550;border-radius:50%;display:grid;place-items:center;color:var(--teal);font-weight:900;font-size:19px;margin-bottom:14px}.nav{width:100%;display:flex;flex-direction:column;gap:5px}.nav a{color:#82908d;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 2px;border-radius:8px;font-size:10px}.nav a .ico{font-size:18px}.nav a.active{color:var(--teal);background:#16332e;box-shadow:inset 2px 0 var(--teal)}.nav a:hover{background:#202827;color:#eaf8f4}.side-bottom{margin-top:auto;color:#81908c;font-size:10px;text-align:center}
+main{min-width:0}.topbar{height:70px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 26px;gap:15px}.crumb{font-size:17px;font-weight:750}.top-actions{display:flex;align-items:center;gap:12px}.select,.ghost{border:1px solid #315149;background:#162421;color:#b5d9d0;border-radius:7px;padding:9px 11px}.ghost{cursor:pointer}.ghost:hover{border-color:var(--teal);color:white}.avatar{width:34px;height:34px;border-radius:50%;background:#0c9e86;color:#041a16;display:grid;place-items:center;font-weight:850}.content{padding:23px 25px 34px;max-width:1800px;margin:auto}.heading{display:flex;align-items:end;justify-content:space-between;gap:15px;margin-bottom:18px}.eyebrow{color:var(--teal);font-size:10px;letter-spacing:.16em;font-weight:800}.heading h1{font-size:24px;margin:5px 0 2px}.sub{color:var(--muted);font-size:11px}.updated{font-size:10px;color:var(--muted);text-align:right}.grid{display:grid;grid-template-columns:1.05fr 2.05fr 1fr;gap:13px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:7px;min-width:0;overflow:hidden}.panel-head{height:39px;padding:0 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:11px}.panel-head span:first-child:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--teal);margin-right:8px}.panel-body{padding:14px}.dots{color:#82908c;font-size:16px}.risk-panel{grid-column:1;grid-row:1}.entity-panel{grid-column:2;grid-row:1}.latest-panel{grid-column:3;grid-row:1}.high-panel{grid-column:1;grid-row:2}.overview-panel{grid-column:2;grid-row:2}.signals-panel{grid-column:3;grid-row:2}.sla-panel{grid-column:1;grid-row:3}.remediation-panel{grid-column:2;grid-row:3}.inventory-panel{grid-column:3;grid-row:3}.trend-panel{grid-column:1 / span 2;grid-row:4}.feed-panel{grid-column:3;grid-row:4}
+.risk-wrap{display:flex;align-items:center;justify-content:center;gap:17px;min-height:180px}.donut{width:142px;height:142px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--red) 0deg,var(--orange) 0deg,var(--yellow) 0deg,#39413f 0deg)}.donut:after{content:"";position:absolute;inset:9px;background:var(--panel);border-radius:50%}.donut-center{z-index:1;text-align:center}.donut-center strong{font-size:24px;display:block}.donut-center small{font-size:9px;color:var(--muted)}.legend{display:grid;gap:9px;font-size:10px;color:#bac5c2}.legend i{width:8px;height:8px;display:inline-block;border-radius:50%;margin-right:7px}.legend b{float:right;margin-left:12px;color:white}
+.entity-stats{display:grid;grid-template-columns:repeat(4,1fr);height:150px;align-items:center}.entity-stat{text-align:center;border-right:1px solid var(--line)}.entity-stat:last-child{border:0}.entity-stat strong{display:block;font-size:23px}.entity-stat small{color:var(--muted);font-size:10px}.entity-stat .sym{font-size:14px;margin-right:7px;color:var(--teal)}
+.rows{display:flex;flex-direction:column}.rowitem{padding:10px 0;border-bottom:1px solid #ffffff10;display:flex;justify-content:space-between;gap:12px;font-size:10px}.rowitem:last-child{border:0}.rowitem small{display:block;color:var(--muted);font-size:9px;margin-top:3px}.pill{font-size:9px;font-weight:800;text-transform:uppercase;padding:3px 6px;border-radius:3px;white-space:nowrap}.critical{color:#ff8585;background:#4a2424}.high{color:#ffb36b;background:#49301d}.medium{color:#f1df6a;background:#403c1c}.low,.ok{color:#55d9ac;background:#173a30}.muted{color:var(--muted)}
+.funnel{text-align:center;padding:5px 0 12px}.funnel-stage{margin:0 auto 7px;min-width:34%;width:var(--w);padding:8px 5px;background:linear-gradient(90deg,#0d6759,#168c76);clip-path:polygon(0 0,100% 0,88% 100%,12% 100%);}.funnel-stage strong{font-size:16px;display:block}.funnel-stage small{font-size:9px;color:#c4e9df}.funnel-note{font-size:9px;color:var(--muted)}
+.table{width:100%;border-collapse:collapse;font-size:10px}.table th{text-align:left;color:var(--muted);font-weight:500;padding:7px 4px;border-bottom:1px solid var(--line)}.table td{padding:9px 4px;border-bottom:1px solid #ffffff10}.table tr:last-child td{border:0}.host{max-width:155px;overflow-wrap:anywhere}
+.signal{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #ffffff10;font-size:10px}.signal:last-child{border:0}.signal small{display:block;color:var(--muted);font-size:9px}
+.inventory-line{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ffffff10;font-size:10px}.inventory-line:last-child{border:0}.inventory-line span:first-child{color:#aab6b2}
+.placeholder{min-height:135px;display:grid;place-content:center;text-align:center;color:var(--muted);font-size:10px;gap:6px}.placeholder strong{color:#d4dfdc;font-size:12px}
+.chart{height:170px;display:flex;align-items:end;gap:3px;padding:12px 2px 0}.barwrap{height:100%;flex:1;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:5px;min-width:0}.bar{width:min(15px,80%);min-height:2px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#20d6b2,#126c60)}.barwrap small{font-size:8px;color:var(--muted)}
+.feed-status{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #ffffff10;font-size:10px}.feed-status:last-child{border:0}
+.notice{margin:15px 0 0;border:1px solid #665326;background:#282315;color:#d8c99b;border-radius:6px;padding:10px 12px;font-size:10px}
+.loading,.error-state{padding:60px 20px;text-align:center;color:var(--muted)}.error-state strong{display:block;color:#ffb36b;font-size:17px;margin-bottom:8px}.error-state a{color:var(--teal)}.hidden{display:none!important}
+@media(max-width:1120px){.grid{grid-template-columns:1fr 1.5fr}.risk-panel{grid-column:1;grid-row:1}.entity-panel{grid-column:2;grid-row:1}.latest-panel{grid-column:1;grid-row:2}.high-panel{grid-column:2;grid-row:2}.overview-panel{grid-column:1;grid-row:3}.signals-panel{grid-column:2;grid-row:3}.sla-panel{grid-column:1;grid-row:4}.remediation-panel{grid-column:2;grid-row:4}.inventory-panel{grid-column:1;grid-row:5}.trend-panel{grid-column:1 / span 2;grid-row:6}.feed-panel{grid-column:1 / span 2;grid-row:7}}
+@media(max-width:650px){.app{grid-template-columns:58px minmax(0,1fr)}.sidebar{padding:12px 5px}.logo{width:35px;height:35px}.nav a{font-size:8px;padding:9px 1px}.nav a .ico{font-size:16px}.topbar{height:60px;padding:0 12px}.content{padding:16px 11px}.heading{align-items:start;flex-direction:column}.updated{text-align:left}.grid{display:flex;flex-direction:column}.entity-stats{height:120px}.entity-stat strong{font-size:18px}.risk-wrap{min-height:155px}.donut{width:120px;height:120px}.top-actions{gap:6px}.select,.ghost{padding:7px;font-size:10px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" aria-label="Administrator navigation">
+<div class="logo" title="Scam Detector">SD</div>
+<nav class="nav">
+<a class="active" href="/admin.html"><span class="ico">▦</span>Dashboard</a>
+<a href="#inventory"><span class="ico">⬡</span>Inventory</a>
+<a href="#threats"><span class="ico">⛨</span>Threats</a>
+<a href="#alerts"><span class="ico">▲</span>Alerts</a>
+<a href="#workflows"><span class="ico">⌘</span>Workflows</a>
+<a href="#remediation"><span class="ico">◈</span>Remediation</a>
+<a href="#feeds"><span class="ico">⌁</span>Integrations</a>
+<a href="#signals"><span class="ico">✣</span>Graph Builder</a>
+<a href="#inventory"><span class="ico">⚙</span>Settings</a>
+</nav>
+<div class="side-bottom">ADMIN<br>CONSOLE</div>
+</aside>
+<main>
+<header class="topbar">
+<div class="crumb">Administrator Dashboard</div>
+<div class="top-actions">
+<select class="select" id="range" aria-label="Dashboard date range"><option value="30">◷ 30 Days</option><option value="7">7 Days</option></select>
+<button class="ghost" id="refresh" type="button">↻ Refresh</button>
+<div class="avatar" id="avatar">AD</div>
+<button class="ghost" id="logout" type="button">Sign out</button>
+</div>
+</header>
+<section class="content">
+<div class="heading"><div><div class="eyebrow">SECURITY OPERATIONS CENTER</div><h1>Platform intelligence overview</h1><div class="sub">Live operational metrics from Scam Detector's production database.</div></div><div class="updated" id="updated">Checking administrator session…</div></div>
+<div id="loading" class="loading">Authenticating administrator and loading platform telemetry…</div>
+<div id="denied" class="error-state hidden"><strong>Administrator access required</strong><p id="denied-message">Sign in with an administrator account to view this console.</p><a href="/account.html">Go to account sign-in</a></div>
+<div id="dashboard" class="grid hidden">
+<section class="panel risk-panel" id="alerts"><div class="panel-head"><span>Alerts Distribution · 30 Days</span><span class="dots">⋮</span></div><div class="panel-body risk-wrap"><div class="donut" id="risk-donut"><div class="donut-center"><strong id="risk-total">0</strong><small>SCANS</small></div></div><div class="legend" id="risk-legend"></div></div></section>
+<section class="panel entity-panel"><div class="panel-head"><span>Entity Risk Summary</span><span class="dots">⋮</span></div><div class="panel-body entity-stats">
+<div class="entity-stat"><strong id="users">0</strong><small><span class="sym">♟</span>Human Identities</small></div>
+<div class="entity-stat"><strong id="hosts">0</strong><small><span class="sym">⌘</span>Unique Hosts</small></div>
+<div class="entity-stat"><strong id="monitors">0</strong><small><span class="sym">▣</span>Monitored Domains</small></div>
+<div class="entity-stat"><strong id="admins">—</strong><small><span class="sym">♙</span>Roles / Admins</small></div>
+</div></section>
+<section class="panel latest-panel" id="threats"><div class="panel-head"><span>Latest Threat Intelligence</span><span class="dots">⋮</span></div><div class="panel-body rows" id="latest-threats"></div></section>
+<section class="panel high-panel"><div class="panel-head"><span>High Risk Entities</span><span class="dots">⋮</span></div><div class="panel-body"><table class="table"><thead><tr><th>Entity</th><th>Score</th><th>Priority</th></tr></thead><tbody id="high-risk"></tbody></table></div></section>
+<section class="panel overview-panel"><div class="panel-head"><span>Alert Overview</span><span class="dots">⋮</span></div><div class="panel-body funnel" id="overview-funnel"></div></section>
+<section class="panel signals-panel" id="signals"><div class="panel-head"><span>Top Detection Signals</span><span class="dots">⋮</span></div><div class="panel-body" id="top-signals"></div></section>
+<section class="panel sla-panel"><div class="panel-head"><span>SLA Status</span><span class="dots">⋮</span></div><div class="placeholder"><strong>Not tracked yet</strong><span>Investigation response targets are not configured.</span></div></section>
+<section class="panel remediation-panel" id="remediation"><div class="panel-head"><span>Remediation Status</span><span class="dots">⋮</span></div><div class="placeholder"><strong>Case workflow not implemented</strong><span>Open, in-progress and resolved case states are not currently stored.</span></div></section>
+<section class="panel inventory-panel" id="inventory"><div class="panel-head"><span>Inventory</span><span class="dots">⋮</span></div><div class="panel-body" id="inventory-list"></div></section>
+<section class="panel trend-panel"><div class="panel-head"><span>Scanning Activity Trend</span><span class="dots">⋮</span></div><div class="panel-body"><div class="chart" id="activity-chart"></div></div></section>
+<section class="panel feed-panel" id="feeds"><div class="panel-head"><span>Threat Feed Health</span><span class="dots">⋮</span></div><div class="panel-body" id="feed-list"></div></section>
+</div>
+<div class="notice hidden" id="data-note">Metrics represent records currently stored by Scam Detector. They are not a count of all threats on the internet. Visitor geography, MITRE ATT&CK mappings, SLA and remediation cases are not currently collected.</div>
+</section>
+</main>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=value=>new Intl.NumberFormat().format(Number(value||0));
+const safeDate=value=>value?new Date(value).toLocaleString():"Not recorded";
+function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=String(text);return node}
+function clear(node){while(node.firstChild)node.removeChild(node.firstChild)}
+let payload=null;
+function showDenied(message){$("loading").classList.add("hidden");$("dashboard").classList.add("hidden");$("data-note").classList.add("hidden");$("denied").classList.remove("hidden");$("denied-message").textContent=message}
+function render(data){
+ payload=data;const s=data.summary||{},r=data.riskDistribution||{},inv=data.inventory||{};
+ $("users").textContent=fmt(inv.users);$("hosts").textContent=fmt(s.uniqueHosts);$("monitors").textContent=fmt(inv.monitoredDomains);$("admins").textContent="Role protected";$("avatar").textContent=(data.administrator?.email||"AD").slice(0,2).toUpperCase();
+ const total=Object.values(r).reduce((a,b)=>a+Number(b||0),0);$("risk-total").textContent=fmt(total);
+ const colors={critical:"var(--red)",high:"var(--orange)",guarded:"var(--yellow)",low:"var(--teal)"};
+ let angle=0;const stops=[];for(const key of ["critical","high","guarded","low"]){const size=total?Number(r[key]||0)/total*360:0;stops.push(colors[key]+" "+angle+"deg "+(angle+size)+"deg");angle+=size}
+ $("risk-donut").style.background=total?"conic-gradient("+stops.join(",")+")":"conic-gradient(#39413f 0deg 360deg)";
+ clear($("risk-legend"));for(const key of ["critical","high","guarded","low"]){const line=el("div","");const dot=el("i");dot.style.background=colors[key];line.append(dot,document.createTextNode(key[0].toUpperCase()+key.slice(1)));const b=el("b","",fmt(r[key]));line.append(b);$("risk-legend").append(line)}
+ clear($("latest-threats"));if(!(data.latestThreats||[]).length){$("latest-threats").append(el("p","muted","No unexpired threat indicators are recorded."))}else for(const t of data.latestThreats){const row=el("div","rowitem");const left=el("div","host",t.hostname);left.append(el("small","",String(t.source).toUpperCase()+" · "+(t.threatType||"Threat indicator")));row.append(left,el("small","",safeDate(t.importedAt)));$("latest-threats").append(row)}
+ clear($("high-risk"));if(!(data.highRiskEntities||[]).length){const tr=el("tr");const td=el("td","muted","No high or critical scans recorded.");td.colSpan=3;tr.append(td);$("high-risk").append(tr)}else for(const item of data.highRiskEntities){const tr=el("tr");const host=el("td","host",item.hostname);const score=el("td","",fmt(item.riskScore));const priority=el("td");priority.append(el("span","pill "+item.riskLevel,item.riskLevel));tr.append(host,score,priority);$("high-risk").append(tr)}
+ const funnel=$("overview-funnel");clear(funnel);const stages=[["Scans processed",s.totalScans,100],["Scans · 30 days",s.scans30d,83],["High / critical",s.highRiskScans,65],["Critical",s.criticalScans,47]];for(const [label,value,width] of stages){const div=el("div","funnel-stage");div.style.setProperty("--w",width+"%");div.append(el("strong","",fmt(value)),el("small","",label));funnel.append(div)}
+ clear($("top-signals"));if(!(data.topFindings||[]).length){$("top-signals").append(el("p","muted","No detection findings recorded yet."))}else for(const f of data.topFindings){const row=el("div","signal");const left=el("div","",f.title);left.append(el("small","",f.code));row.append(left,el("b","",fmt(f.count)));$("top-signals").append(row)}
+ clear($("inventory-list"));for(const [label,value] of [["Registered users",inv.users],["Active sessions",inv.activeSessions],["Monitored domains",inv.monitoredDomains],["Active threat hosts",inv.threatHosts],["Intelligence records",inv.intelligenceRecords],["Unique scanned hosts",s.uniqueHosts]]){const row=el("div","inventory-line");row.append(el("span","",label),el("b","",fmt(value)));$("inventory-list").append(row)}
+ clear($("activity-chart"));const days=Array.isArray(data.dailyActivity)?data.dailyActivity:[];const selected=Number($("range").value);const subset=days.slice(-selected);const peak=Math.max(1,...subset.map(d=>Number(d.count||0)));for(let i=0;i<subset.length;i++){const d=subset[i],wrap=el("div","barwrap");wrap.append(el("b","",fmt(d.count)));const bar=el("div","bar");bar.style.height=Math.max(2,Number(d.count||0)/peak*105)+"px";bar.title=d.date+": "+d.count+" scans";wrap.append(bar);if(i%Math.max(1,Math.ceil(subset.length/10))===0||i===subset.length-1)wrap.append(el("small","",d.label));else wrap.append(el("small","",""));$("activity-chart").append(wrap)}
+ clear($("feed-list"));if(!(data.threatFeeds||[]).length){$("feed-list").append(el("p","muted","No threat-feed status has been reported."))}else for(const f of data.threatFeeds){const row=el("div","feed-status");const left=el("div","",String(f.source).toUpperCase());left.append(el("small","muted",fmt(f.itemCount)+" indicators · last success "+safeDate(f.lastSuccessAt)));const right=el("span","pill "+(f.status==="ok"?"ok":"medium"),f.status);row.append(left,right);$("feed-list").append(row)}
+ $("updated").textContent="Updated "+safeDate(data.generatedAt)+" · Signed in as "+data.administrator.email;$("loading").classList.add("hidden");$("denied").classList.add("hidden");$("dashboard").classList.remove("hidden");$("data-note").classList.remove("hidden");
+}
+async function load(){ $("loading").classList.remove("hidden");$("loading").textContent="Authenticating administrator and loading platform telemetry…";$("denied").classList.add("hidden");try{const response=await fetch("/api/admin/overview",{headers:{Accept:"application/json"},cache:"no-store",credentials:"same-origin"});const body=await response.json().catch(()=>({}));if(response.status===401){showDenied("Your session is missing or expired. Sign in with the account assigned the administrator role.");return}if(response.status===403){showDenied("This account is signed in but does not have the administrator role. Ask the project owner to grant access after verifying your identity.");return}if(!response.ok)throw new Error(body.error||"Administrator dashboard unavailable.");render(body)}catch(error){showDenied(error instanceof Error?error.message:"Could not load administrator dashboard.")}}
+$("refresh").addEventListener("click",load);$("range").addEventListener("change",()=>{if(payload)render(payload)});$("logout").addEventListener("click",async()=>{try{await fetch("/api/auth/logout",{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin"})}finally{location.href="/account.html"}});load();
+</script>
+</body>
+</html>
