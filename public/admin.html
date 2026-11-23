@@ -90,7 +90,7 @@ let payload=null;
 function showDenied(message){$("loading").classList.add("hidden");$("dashboard").classList.add("hidden");$("data-note").classList.add("hidden");$("denied").classList.remove("hidden");$("denied-message").textContent=message}
 function render(data){
  payload=data;const s=data.summary||{},r=data.riskDistribution||{},inv=data.inventory||{};
- $("users").textContent=fmt(inv.users);$("hosts").textContent=fmt(s.uniqueHosts);$("monitors").textContent=fmt(inv.monitoredDomains);$("admins").textContent="Role protected";$("avatar").textContent=(data.administrator?.email||"AD").slice(0,2).toUpperCase();
+ $("users").textContent=fmt(inv.users);$("hosts").textContent=fmt(s.uniqueHosts);$("monitors").textContent=fmt(inv.monitoredDomains);$("admins").textContent=fmt(inv.admins)+" admins";$("avatar").textContent=(data.administrator?.email||"AD").slice(0,2).toUpperCase();
  const total=Object.values(r).reduce((a,b)=>a+Number(b||0),0);$("risk-total").textContent=fmt(total);
  const colors={critical:"var(--red)",high:"var(--orange)",guarded:"var(--yellow)",low:"var(--teal)"};
  let angle=0;const stops=[];for(const key of ["critical","high","guarded","low"]){const size=total?Number(r[key]||0)/total*360:0;stops.push(colors[key]+" "+angle+"deg "+(angle+size)+"deg");angle+=size}
