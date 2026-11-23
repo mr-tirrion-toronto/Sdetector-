@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /account.html
+Disallow: /assistant.html
+Disallow: /api/
+Sitemap: https://scam-detector-a92.pages.dev/sitemap.xml

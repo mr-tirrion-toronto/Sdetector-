@@ -4,7 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#07111f">
-  <meta name="description" content="Scam Detector helps you inspect suspicious website URLs, understand risk signals and make safer decisions before you click.">
+  <meta name="description" content="Investigate suspicious websites with evidence-based security checks and AI-powered explanations. Understand phishing signals, domain risks and safer next steps before you click.">
+  <link rel="canonical" href="https://scam-detector-a92.pages.dev/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Scam Detector">
+  <meta property="og:title" content="Scam Detector — AI-Powered Website Risk Intelligence">
+  <meta property="og:description" content="Check suspicious website URLs, review technical risk signals and get clear AI-powered explanations.">
+  <meta property="og:url" content="https://scam-detector-a92.pages.dev/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Scam Detector — Website Risk Intelligence">
+  <meta name="twitter:description" content="Evidence-based website checks with AI-powered explanations.">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Scam Detector","url":"https://scam-detector-a92.pages.dev/","applicationCategory":"SecurityApplication","operatingSystem":"Any","description":"Investigate suspicious website URLs using technical security signals, threat intelligence and AI-powered explanations.","creator":{"@type":"Person","name":"Mr Tirrion"}}</script>
   <title>Scam Detector — Website Risk Intelligence</title>
   <style>
     :root{color-scheme:dark;--bg:#07111f;--surface:#0c1929;--panel:#102238;--line:#20364c;--text:#eff6ff;--muted:#9db0c6;--mint:#69f0c1;--blue:#83baff;--red:#ff7185;--amber:#ffc66d;--radius:22px}
@@ -263,6 +273,9 @@ function saveLocalScan(data){
     localStorage.setItem('scam-detector-history',JSON.stringify(history.slice(0,8)));
   }catch{/* Browser storage may be disabled; scanning still works. */}
 }
+</script>
+<script>
+(()=>{try{const key='sd_analytics_page_seen';const path=location.pathname||'/';if(sessionStorage.getItem(key)===path)return;sessionStorage.setItem(key,path);fetch('/api/track',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({page:path,referrer:document.referrer||''}),keepalive:true}).catch(()=>{});}catch{}})();
 </script>
 </body>
 </html>
