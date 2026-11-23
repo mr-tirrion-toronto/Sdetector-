@@ -55,6 +55,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         GROUP BY f.code, f.title, f.severity ORDER BY COUNT(*) DESC LIMIT 10`,
       sql`SELECT
         (SELECT COUNT(*)::int FROM public.app_users WHERE status = 'active') AS users,
+        (SELECT COUNT(*)::int FROM public.app_users WHERE status = 'active' AND role = 'admin') AS admins,
         (SELECT COUNT(*)::int FROM public.user_sessions WHERE revoked_at IS NULL AND expires_at > NOW()) AS active_sessions,
         (SELECT COUNT(*)::int FROM public.monitored_domains WHERE enabled = TRUE) AS monitored_domains,
         (SELECT COUNT(DISTINCT hostname)::int FROM public.threat_indicators WHERE expires_at > NOW()) AS threat_hosts,
@@ -99,7 +100,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       })),
       threatFeeds: feeds, latestThreats, highRiskEntities, topFindings,
       inventory: {
-        users: Number(inventory.users ?? 0), activeSessions: Number(inventory.active_sessions ?? 0),
+        users: Number(inventory.users ?? 0), admins: Number(inventory.admins ?? 0), activeSessions: Number(inventory.active_sessions ?? 0),
         monitoredDomains: Number(inventory.monitored_domains ?? 0),
         threatHosts: Number(inventory.threat_hosts ?? 0),
         intelligenceRecords: Number(inventory.intelligence_records ?? 0)
