@@ -1,34 +1,41 @@
+import { getAuthenticatedUser, json } from "../../src/auth";
 import { neon } from "@neondatabase/serverless";
 
 interface Env { DATABASE_URL?: string }
 
-export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const headers = {
-    "cache-control": "public, max-age=30, stale-while-revalidate=60",
+    "cache-control": "no-store",
     "content-type": "application/json; charset=utf-8",
-    "x-content-type-options": "nosniff"
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer"
   };
   if (!env.DATABASE_URL) {
     return Response.json({ error: "Dashboard data is temporarily unavailable." }, { status: 503, headers });
   }
   try {
     const sql = neon(env.DATABASE_URL);
+    const user = await getAuthenticatedUser(sql, request);
+    if (!user || user.authType !== "session") {
+      return json({ error: "Sign in to view your private dashboard." }, 401);
+    }
     const [summaryRows, riskRows, trendRows, feedRows] = await Promise.all([
       sql`SELECT COUNT(*)::int AS total_scans,
                  COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS scans_24h,
                  COUNT(DISTINCT hostname)::int AS unique_hosts,
                  COALESCE(ROUND(AVG(risk_score))::int, 0) AS average_score,
                  COUNT(*) FILTER (WHERE risk_level IN ('high','critical'))::int AS elevated_scans
-          FROM scans`,
+          FROM scans WHERE user_id = ${user.id}`,
       sql`SELECT risk_level, COUNT(*)::int AS count
-          FROM scans GROUP BY risk_level`,
+          FROM scans WHERE user_id = ${user.id} GROUP BY risk_level`,
       sql`SELECT TO_CHAR(day, 'Dy') AS day_label,
                  TO_CHAR(day, 'YYYY-MM-DD') AS day,
                  COALESCE(scan_count, 0)::int AS count
           FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS days(day)
           LEFT JOIN (
             SELECT DATE(created_at) AS scan_day, COUNT(*)::int AS scan_count
-            FROM scans WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
+            FROM scans WHERE user_id = ${user.id}
+              AND created_at >= CURRENT_DATE - INTERVAL '6 days'
             GROUP BY DATE(created_at)
           ) daily ON daily.scan_day = DATE(day)
           ORDER BY DATE(day)`,
@@ -59,7 +66,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       },
       dailyActivity: trend,
       threatFeeds: feeds,
-      privacy: "Only aggregate statistics are exposed. Scan URLs and report contents are not included."
+      privacy: "Statistics are scoped to the signed-in account. Other account scans, URLs and report contents are not included. Threat-feed health is shared platform status."
     }, { headers });
   } catch (error) {
     console.error("DASHBOARD_QUERY_FAILED", error instanceof Error ? error.name : "UnknownError");
