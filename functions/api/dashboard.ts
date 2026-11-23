@@ -3,11 +3,11 @@ import { neon } from "@neondatabase/serverless";
 
 interface Env { DATABASE_URL?: string }
 
-export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const headers = {
     "cache-control": "no-store",
     "content-type": "application/json; charset=utf-8",
-    "x-content-type-options": "nosniff"
+    "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer"
   };
   if (!env.DATABASE_URL) {
