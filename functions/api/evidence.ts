@@ -2,10 +2,38 @@ import { neon } from "@neondatabase/serverless";
 import { getAuthenticatedUser, isSameOriginMutation, json } from "../../src/auth";
 import { canonicalJson, custodyEventHash, verifyCustodyChain } from "../../src/evidence-integrity";
 
-interface Env { DATABASE_URL?: string }
+interface Env { DATABASE_URL?: string; EVIDENCE_SIGNING_PRIVATE_KEY?: string; EVIDENCE_SIGNING_PUBLIC_KEY?: string; EVIDENCE_SIGNING_KEY_ID?: string }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-type EventType = "record_created" | "pdf_export_initiated" | "integrity_verified" | "pdf_hash_recorded" | "pdf_hash_verified";
+type EventType = "record_created" | "pdf_export_initiated" | "integrity_verified" | "pdf_hash_recorded" | "pdf_hash_verified" | "manifest_signed";
 
+function decodeBase64(value: string): Uint8Array {
+  const binary = atob(value.replace(/\\s+/g, ""));
+  return Uint8Array.from(binary, character => character.charCodeAt(0));
+}
+function encodeHex(bytes: Uint8Array): string {
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+}
+function decodeHex(value: string): Uint8Array {
+  return Uint8Array.from(value.match(/.{2}/g) ?? [], pair => parseInt(pair, 16));
+}
+async function createEd25519Signature(digest: string, env: Env): Promise<string | null> {
+  if (!env.EVIDENCE_SIGNING_PRIVATE_KEY || !env.EVIDENCE_SIGNING_PUBLIC_KEY || !env.EVIDENCE_SIGNING_KEY_ID) return null;
+  const privateKey = await crypto.subtle.importKey("pkcs8", decodeBase64(env.EVIDENCE_SIGNING_PRIVATE_KEY), { name: "Ed25519" }, false, ["sign"]);
+  const publicKey = await crypto.subtle.importKey("spki", decodeBase64(env.EVIDENCE_SIGNING_PUBLIC_KEY), { name: "Ed25519" }, false, ["verify"]);
+  const bytes = new TextEncoder().encode(digest);
+  const signature = new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, privateKey, bytes));
+  const valid = await crypto.subtle.verify({ name: "Ed25519" }, publicKey, signature, bytes);
+  if (!valid) throw new Error("EVIDENCE_SIGNING_KEY_PAIR_MISMATCH");
+  return encodeHex(signature);
+}
+async function verifyEd25519Signature(digest: string, signatureHex: string, publicKeySpki: string): Promise<boolean> {
+  try {
+    const publicKey = await crypto.subtle.importKey("spki", decodeBase64(publicKeySpki), { name: "Ed25519" }, false, ["verify"]);
+    return await crypto.subtle.verify({ name: "Ed25519" }, publicKey, decodeHex(signatureHex), new TextEncoder().encode(digest));
+  } catch {
+    return false;
+  }
+}
 async function appendEvent(sql: any, evidenceId: string, actorUserId: string, eventType: EventType, details: Record<string, unknown>) {
   const previousRows = await sql`SELECT sequence_no, event_hash FROM evidence_custody_events
     WHERE evidence_id = ${evidenceId} ORDER BY sequence_no DESC LIMIT 1`;
@@ -108,14 +136,61 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
           return json({ error: "Evidence record exists, but its first custody event could not be recorded. Retry the request." }, 503);
         }
       }
+      let signingStatus: "not_configured" | "signed" | "unavailable" = "not_configured";
+      try {
+        if (env.EVIDENCE_SIGNING_PRIVATE_KEY && env.EVIDENCE_SIGNING_PUBLIC_KEY && env.EVIDENCE_SIGNING_KEY_ID) {
+          let signature = record.manifest_signature ? String(record.manifest_signature).trim() : "";
+          if (!signature) {
+            signature = await createEd25519Signature(String(record.manifest_sha256).trim(), env) ?? "";
+            if (signature) {
+              await sql`UPDATE evidence_records SET manifest_signature = ${signature},
+                signing_key_id = ${env.EVIDENCE_SIGNING_KEY_ID},
+                signing_public_key = ${env.EVIDENCE_SIGNING_PUBLIC_KEY},
+                signature_algorithm = 'Ed25519'
+                WHERE id = ${record.id} AND manifest_signature IS NULL`;
+            }
+          }
+          const signedRows = await sql`SELECT manifest_signature, signing_key_id, signing_public_key, signature_algorithm
+            FROM evidence_records WHERE id = ${record.id} LIMIT 1`;
+          const signed = (signedRows as Array<Record<string, any>>)[0];
+          if (signed?.manifest_signature && signed?.signing_public_key &&
+              await verifyEd25519Signature(String(record.manifest_sha256).trim(), String(signed.manifest_signature).trim(), signed.signing_public_key)) {
+            signingStatus = "signed";
+            const signedEventRows = await sql`SELECT sequence_no FROM evidence_custody_events
+              WHERE evidence_id = ${record.id} AND event_type = 'manifest_signed' LIMIT 1`;
+            if (!signedEventRows.length) {
+              await appendEvent(sql, record.id, user.id, "manifest_signed", {
+                manifestSha256: String(record.manifest_sha256).trim(),
+                algorithm: "Ed25519",
+                keyId: signed.signing_key_id
+              });
+            }
+          } else if (signed?.manifest_signature) {
+            signingStatus = "unavailable";
+          }
+        }
+      } catch (error) {
+        signingStatus = "unavailable";
+        console.error("EVIDENCE_MANIFEST_SIGNING_FAILED", error instanceof Error ? error.name : "UnknownError");
+      }
+      const finalRows = await sql`SELECT manifest_signature, signing_key_id, signing_public_key, signature_algorithm
+        FROM evidence_records WHERE id = ${record.id} LIMIT 1`;
+      const finalSignature = (finalRows as Array<Record<string, any>>)[0];
       return json({
         evidenceId: record.id,
         scanId: scan.id,
         manifestSha256: String(record.manifest_sha256).trim(),
+        signature: finalSignature?.manifest_signature ? {
+          algorithm: finalSignature.signature_algorithm,
+          keyId: finalSignature.signing_key_id,
+          publicKeySpki: finalSignature.signing_public_key,
+          signatureHex: String(finalSignature.manifest_signature).trim(),
+          status: signingStatus
+        } : { status: signingStatus },
         createdAt: record.created_at,
         status: "preserved",
         reused: record.id !== manifestId,
-        note: "Server-side manifest of retained scan records. It is not a signed forensic acquisition or trusted timestamp."
+        note: "Server-side manifest of retained scan records. A digital signature is present only when a separately managed Ed25519 signing key is configured."
       });
     }
 
@@ -188,6 +263,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     if (!record) return json({ error: "Evidence record not found in this account." }, 404);
     const { sha256Hex } = await import("../../src/evidence-integrity");
     const digest = await sha256Hex(canonicalJson(record.manifest));
+    const signatureRows = await sql`SELECT manifest_signature, signing_key_id, signing_public_key, signature_algorithm
+      FROM evidence_records WHERE id = ${id} LIMIT 1`;
+    const signatureRecord = (signatureRows as Array<Record<string, any>>)[0];
+    const signatureValid = signatureRecord?.manifest_signature && signatureRecord?.signing_public_key
+      ? await verifyEd25519Signature(digest, String(signatureRecord.manifest_signature).trim(), signatureRecord.signing_public_key)
+      : null;
     const eventRows = await sql`SELECT evidence_id::text, sequence_no, actor_user_id::text, event_type, details,
         previous_event_hash, event_hash, created_at
       FROM evidence_custody_events WHERE evidence_id = ${id} ORDER BY sequence_no ASC`;
@@ -202,8 +283,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       scanId: record.scan_id,
       manifest: record.manifest,
       manifestSha256: String(record.manifest_sha256).trim(),
+      signature: signatureRecord?.manifest_signature ? {
+        algorithm: signatureRecord.signature_algorithm,
+        keyId: signatureRecord.signing_key_id,
+        publicKeySpki: signatureRecord.signing_public_key,
+        signatureHex: String(signatureRecord.manifest_signature).trim(),
+        valid: signatureValid === true
+      } : { valid: null, status: "not_configured" },
       createdAt: record.created_at,
-      integrity: { manifestValid: digest === String(record.manifest_sha256).trim(), custodyChain: chain },
+      integrity: { manifestValid: digest === String(record.manifest_sha256).trim(), signatureValid, custodyChain: chain },
       custodyEvents: events.map(({ eventHash, ...event }) => ({ ...event, eventHash }))
     });
   } catch (error) {
