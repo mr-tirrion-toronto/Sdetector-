@@ -10,9 +10,9 @@ export interface MultiChannelResult {
 const URL_RE=/https?:\/\/[^\s<>"']+/gi;
 const PHONE_RE=/(?:\+\d{1,3}[\s().-]*)?(?:\d[\s().-]*){7,14}\d/g;
 const URGENCY=/(urgent|immediately|within\s+\d+\s*(minutes?|hours?)|act now|account.{0,20}(suspend|blocked|close)|haraka|mara moja|akaunti.{0,20}(fungwa|simamishwa))/i;
-const CREDENTIALS=/(password|passcode|pin|otp|one[- ]time code|verification code|login details|nenosiri|nywila|namba ya siri|msimbo wa uthibitisho)/i;
+const CREDENTIALS=/(?:\\b(?:password|passcode|pin|otp|one[- ]time code|verification code|login details)\\b|nenosiri|nywila|namba ya siri|msimbo wa uthibitisho)/i;
 const PAYMENT=/(send (money|payment|fee)|pay (now|a fee|to unlock)|gift card|crypto|bitcoin|wallet address|m-pesa|mpesa|tigo pesa|airtel money|mixx by yas|lipa sasa|tuma pesa|ada ya usajili)/i;
-const IMPERSONATION=/(bank|support team|customer care|tax authority|police|government|mamlaka|benki|huduma kwa wateja|TRA|NIDA|TCRA)/i;
+const IMPERSONATION=/(?:\\b(?:bank|support team|customer care|tax authority|police|government|TRA|NIDA|TCRA)\\b|mamlaka|benki|huduma kwa wateja)/i;
 const REWARD=/(you (have )?won|prize|giveaway|claim your|free gift|umejishindia|zawadi|bahati nasibu)/i;
 const SHORTENERS=new Set(["bit.ly","tinyurl.com","t.co","is.gd","cutt.ly","rb.gy","shorturl.at","rebrand.ly"]);
 const COUNTRY_CODES:Record<string,string>={TZ:"255",KE:"254",UG:"256",RW:"250",BI:"257",ZM:"260",MW:"265",ZA:"27",NG:"234",GH:"233",US:"1",GB:"44",IN:"91"};
