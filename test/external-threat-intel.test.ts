@@ -75,8 +75,8 @@ describe("optional multi-source threat intelligence", () => {
     await lookupExternalThreatIntelligence({ GOOGLE_WEB_RISK_API_KEY: "test-google" }, "https://user:pass@example.com/path?token=private#fragment", fetcher as any);
     expect(urls).toHaveLength(1);
     expect(urls[0]).toContain("webrisk.googleapis.com");
-    expect(urls[0]).not.toContain("example.com");
-    expect(requestBodies.join(" ")).toContain("https://example.com/path");
+    expect(urls[0]).toContain("uri=https%3A%2F%2Fexample.com%2Fpath");
+    expect(urls[0]).not.toContain("private");
     expect(requestBodies.join(" ")).not.toContain("private");
   });
 });
