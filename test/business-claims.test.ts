@@ -32,6 +32,13 @@ describe("analyzeBusinessClaims", () => {
     expect(result.findings.find(item => item.code === "BUSINESS_OPERATOR_DETAILS_INCOMPLETE")?.points).toBe(0);
   });
 
+  it("does not flag missing business details on reserved documentation domains", () => {
+    const result = analyzeBusinessClaims("Example Domain. Learn more about domain examples.", "", "example.com");
+    expect(result.operatorDisclosure.applicable).toBe(false);
+    expect(result.signals).not.toContain("operator_identity_disclosure_incomplete");
+    expect(result.findings.some(item => item.code === "BUSINESS_OPERATOR_DETAILS_INCOMPLETE")).toBe(false);
+  });
+
   it("recognizes paid-chat claims without calling them proof of fraud", () => {
     const result = analyzeBusinessClaims("Get paid to chat with foreigners and earn money for every message.");
     expect(result.model).toBe("paid_chat_or_task_claim");
