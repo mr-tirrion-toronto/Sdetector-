@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { analyzeUrl } from "../../src/analyzer";
 import { lookupThreatIntelligence, type ThreatIntelResult } from "../../src/threat-intel";
+import { lookupExternalThreatIntelligence, type ExternalThreatIntelResult } from "../../src/external-threat-intel";
 import { investigateDomain } from "../../src/domain-intel";
 import { inspectLiveDomain, type TlsData } from "../../src/live-inspection";
 import { getAuthenticatedUser } from "../../src/auth";
@@ -17,6 +18,10 @@ interface Env {
   OPENAI_MODEL?: string;
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
+  GOOGLE_SAFE_BROWSING_API_KEY?: string;
+  URLHAUS_AUTH_KEY?: string;
+  PHISHTANK_API_KEY?: string;
+  VIRUSTOTAL_API_KEY?: string;
 }
 
 const BODY_LIMIT = 4096;
@@ -332,6 +337,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     findings: []
   };
 
+  let externalThreatIntelligence: ExternalThreatIntelResult = {
+    status: "not_configured",
+    providers: [],
+    findings: []
+  };
+
   let cachedTls: TlsData | null = null;
   try {
     const cacheRows = await sql`SELECT tls_data FROM domain_tls_cache WHERE hostname = ${result.hostname} AND expires_at > NOW() LIMIT 1`;
@@ -344,8 +355,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     console.error("TLS_CACHE_READ_FAILED", error instanceof Error ? error.name : "UnknownError");
   }
 
-  const [localIntelResult, domainIntelResult, liveInspectionResult] = await Promise.allSettled([
+  const [localIntelResult, externalIntelResult, domainIntelResult, liveInspectionResult] = await Promise.allSettled([
     lookupThreatIntelligence(sql, result.normalizedUrl),
+    lookupExternalThreatIntelligence(env, result.normalizedUrl),
     investigateDomain(result.hostname),
     inspectLiveDomain(result.inputUrl, result.hostname, fetch, cachedTls)
   ]);
@@ -354,6 +366,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } else {
     console.error("THREAT_INTELLIGENCE_LOOKUP_FAILED",
       localIntelResult.reason instanceof Error ? localIntelResult.reason.name : "UnknownError");
+  }
+  if (externalIntelResult.status === "fulfilled") {
+    externalThreatIntelligence = externalIntelResult.value;
+  } else {
+    console.error("EXTERNAL_THREAT_INTELLIGENCE_LOOKUP_FAILED", externalIntelResult.reason instanceof Error ? externalIntelResult.reason.name : "UnknownError");
   }
   const domainIntelligence = domainIntelResult.status === "fulfilled"
     ? domainIntelResult.value
@@ -389,7 +406,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   });
   const externalConfirmed = domainIntelligence.status === "available" &&
     domainIntelligence.verdict?.threat === true;
-  const findings = [...result.findings, ...threatIntelligence.findings,
+  const findings = [...result.findings, ...threatIntelligence.findings, ...externalThreatIntelligence.findings,
     ...(liveInspection?.findings ?? []), ...brandAssessment.findings];
   if (externalConfirmed) {
     findings.push({
@@ -418,7 +435,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     });
   }
 
-  const confirmedThreat = threatIntelligence.matched || externalConfirmed;
+  const externalConfirmedMatch = externalThreatIntelligence.providers.some(provider => provider.confirmed && provider.matched);
+  const confirmedThreat = threatIntelligence.matched || externalConfirmed || externalConfirmedMatch;
   const externalScore = domainIntelligence.status === "available"
     ? Math.round((Number(domainIntelligence.assessment?.score ?? domainIntelligence.verdict?.riskScore ?? 0) /
         Number(domainIntelligence.assessment?.maxScore ?? 100)) * 100)
@@ -434,6 +452,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     finding.code === "KNOWN_PHISHING_URL" ? "PhishTank" : "Threat intelligence"
   );
   if (externalConfirmed) threatSources.push("PhishDestroy");
+  for (const provider of externalThreatIntelligence.providers.filter(item => item.matched)) {
+    threatSources.push(provider.source.replace(/_/g, " "));
+  }
   const scamDna = await buildScamDna({
     hostname: result.hostname, findings, brands: brandAssessment.matches, live: liveInspection,
     threatSources, businessSignals: pageData?.businessSignals ?? []
@@ -500,6 +521,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const limitations = [...result.limitations];
   limitations.push(...brandAssessment.limitations, ...relationshipGraph.limitations, ...scamDna.limitations);
   if (changeMonitoring.status === "history_unavailable") limitations.push(changeMonitoring.note);
+  if (externalThreatIntelligence.status === "not_configured") {
+    limitations.push("Google Safe Browsing, URLhaus, PhishTank and VirusTotal API lookups are not configured. Local Phishunt intelligence remains separate.");
+  } else if (externalThreatIntelligence.status === "partial" || externalThreatIntelligence.status === "unavailable") {
+    limitations.push("One or more external reputation providers are not configured or unavailable. Provider coverage is incomplete; a missing match is not conclusive.");
+  }
   if (threatIntelligence.status === "not_configured") {
     limitations.push("Scheduled local threat-intelligence feeds are not configured yet.");
   } else if (threatIntelligence.status === "partial" || threatIntelligence.status === "unavailable") {
@@ -527,6 +553,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     confidence: confirmedThreat ? "high" : (brandAssessment.matches.length > 0 || (domainIntelligence.assessment && domainIntelligence.assessment.score >= 20)) ? "moderate" : "limited",
     limitations,
     threatIntelligence,
+    externalThreatIntelligence,
     domainIntelligence,
     liveInspection,
     independentEvidence,
