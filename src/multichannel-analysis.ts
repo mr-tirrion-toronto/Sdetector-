@@ -10,9 +10,9 @@ export interface MultiChannelResult {
 const URL_RE=/https?:\/\/[^\s<>"']+/gi;
 const PHONE_RE=/(?:\+\d{1,3}[\s().-]*)?(?:\d[\s().-]*){7,14}\d/g;
 const URGENCY=/(urgent|immediately|within\s+\d+\s*(minutes?|hours?)|act now|account.{0,20}(suspend|blocked|close)|haraka|mara moja|akaunti.{0,20}(fungwa|simamishwa))/i;
-const CREDENTIALS=/(password|passcode|pin|otp|one[- ]time code|verification code|login details|nenosiri|nywila|namba ya siri|msimbo wa uthibitisho)/i;
+const CREDENTIALS=/(?:\b(?:password|passcode|pin|otp|one[- ]time code|verification code|login details)\b|nenosiri|nywila|namba ya siri|msimbo wa uthibitisho)/i;
 const PAYMENT=/(send (money|payment|fee)|pay (now|a fee|to unlock)|gift card|crypto|bitcoin|wallet address|m-pesa|mpesa|tigo pesa|airtel money|mixx by yas|lipa sasa|tuma pesa|ada ya usajili)/i;
-const IMPERSONATION=/(bank|support team|customer care|tax authority|police|government|mamlaka|benki|huduma kwa wateja|TRA|NIDA|TCRA)/i;
+const IMPERSONATION=/(?:\b(?:bank|support team|customer care|tax authority|police|government|TRA|NIDA|TCRA)\b|mamlaka|benki|huduma kwa wateja)/i;
 const REWARD=/(you (have )?won|prize|giveaway|claim your|free gift|umejishindia|zawadi|bahati nasibu)/i;
 const SHORTENERS=new Set(["bit.ly","tinyurl.com","t.co","is.gd","cutt.ly","rb.gy","shorturl.at","rebrand.ly"]);
 const COUNTRY_CODES:Record<string,string>={TZ:"255",KE:"254",UG:"256",RW:"250",BI:"257",ZM:"260",MW:"265",ZA:"27",NG:"234",GH:"233",US:"1",GB:"44",IN:"91"};
@@ -31,7 +31,7 @@ function assessPhones(text:string,countryCode?:string):{numbers:string[];signals
  }
  return {numbers,signals,checks:{phone:"Format checked only; carrier, allocation, SIM registration, reachability, VoIP and disposable-number status are not verified"}};
 }
-export function analyzeMultiChannel(input:{channel:AnalysisChannel;content:string;countryCode?:string;headers?:string;fileName?:string;mimeType?:string}):MultiChannelResult{
+export function analyzeMultiChannel(input:{channel:AnalysisChannel;content:string;countryCode?:string;headers?:string;fileName?:string;mimeType?:string;fileSignature?:string}):MultiChannelResult{
  const content=input.content.trim();
  if(!content||content.length>12000)throw new Error("Provide content between 1 and 12000 characters.");
  const channel=input.channel;
@@ -68,6 +68,9 @@ export function analyzeMultiChannel(input:{channel:AnalysisChannel;content:strin
   const name=(input.fileName||"").toLowerCase(),mime=(input.mimeType||"").toLowerCase();
   if(/\.(exe|scr|js|jse|vbs|vbe|bat|cmd|ps1|hta|msi|apk|jar|iso|img|lnk)$/i.test(name))add(signals,"RISKY_ATTACHMENT_TYPE","Potentially executable attachment","high",24,"Filename extension indicates a script, executable, shortcut or disk image.","Do not open the attachment; verify the sender and scan the file with endpoint security.");
   if(mime.includes("octet-stream"))add(signals,"GENERIC_ATTACHMENT_MIME","Generic binary MIME type","low",5,"The supplied MIME type is application/octet-stream.","Confirm the real file type using a trusted local security tool.");
+  const ext=name.split(".").pop()||"";
+  const expected:Record<string,string>={pdf:"pdf",png:"png",jpg:"jpeg",jpeg:"jpeg",gif:"gif",exe:"pe",dll:"pe",msi:"pe",zip:"zip",doc:"ole",xls:"ole",ppt:"ole",docx:"zip",xlsx:"zip",pptx:"zip",apk:"zip",jar:"zip"};
+  if(input.fileSignature&&expected[ext]&&expected[ext]!==input.fileSignature)add(signals,"FILE_TYPE_EXTENSION_MISMATCH","File extension does not match detected file signature","high",22,"The file name extension suggests "+ext+" but the local header bytes resemble "+input.fileSignature+".","Do not open the file. Treat extension and content mismatch as suspicious and scan it with endpoint security.");
   add(signals,"FILE_CONTENT_NOT_INSPECTED","File contents were not uploaded or detonated","info",0,"This check uses only the supplied filename, MIME type and optional accompanying text.","A full malware verdict requires safe file hashing, static analysis and sandboxing.");
  }
  if(channel==="job"&&/(registration fee|processing fee|training fee|pay to apply|ada ya maombi|lipa ili kupata kazi)/i.test(content))add(signals,"JOB_FEE_REQUEST","Job offer requests an upfront fee","high",24,"The job content appears to request an upfront application or processing fee.","Verify the employer independently; legitimate recruitment should not rely on suspicious upfront payments.");
