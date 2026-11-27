@@ -5,6 +5,8 @@ interface Env { DATABASE_URL?:string }
 const CHANNELS=new Set<AnalysisChannel>(["sms","email","phone","whatsapp","telegram","social","job","investment","qr","file"]);
 export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
  if(!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return json({error:"Content-Type must be application/json."},415);
+ const declaredLength=Number(request.headers.get("content-length")??"0");
+ if(declaredLength>16000)return json({error:"Request body is too large."},413);
  let body:unknown;try{body=await request.json();}catch{return json({error:"Request body must be valid JSON."},400);}
  if(!body||typeof body!=="object")return json({error:"A JSON object is required."},400);
  const data=body as Record<string,unknown>;
@@ -21,11 +23,11 @@ export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
    try{
     const sql=neon(env.DATABASE_URL);
     const user=await getAuthenticatedUser(sql,request);
-    const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(data.content as string));
-    const fingerprint=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
-    await sql`INSERT INTO channel_analyses(id,user_id,channel,content_fingerprint,risk_score,risk_level,signals,created_at)
-      VALUES (${crypto.randomUUID()},${user?.id??null},${result.channel},${fingerprint},${result.score},${result.riskLevel},${JSON.stringify(result.signals)}::jsonb,NOW())`;
-    persistence="saved";
+    if(user?.id){
+     await sql`INSERT INTO channel_analyses(id,user_id,channel,risk_score,risk_level,signals,created_at)
+       VALUES (${crypto.randomUUID()},${user.id},${result.channel},${result.score},${result.riskLevel},${JSON.stringify(result.signals)}::jsonb,NOW())`;
+     persistence="saved";
+    }
    }catch(error){console.error("CHANNEL_ANALYSIS_PERSISTENCE_FAILED",error instanceof Error?error.name:"UnknownError");}
   }
   return json({...result,persistence,privacy:{rawContentStored:false,stored:"channel, SHA-256 fingerprint, risk score, risk level and findings only"}});
