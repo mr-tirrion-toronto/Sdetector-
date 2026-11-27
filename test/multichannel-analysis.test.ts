@@ -7,5 +7,6 @@ describe("multi-channel scam analysis",()=>{
  it("detects job application fee requests",()=>{const r=analyzeMultiChannel({channel:"job",content:"Pay registration fee to apply for this job."});expect(r.signals.map(s=>s.code)).toContain("JOB_FEE_REQUEST");});
  it("detects guaranteed investment returns",()=>{const r=analyzeMultiChannel({channel:"investment",content:"Guaranteed returns of 100% profit daily."});expect(r.signals.map(s=>s.code)).toContain("INVESTMENT_GUARANTEE");});
  it("marks missing email headers as unavailable",()=>{const r=analyzeMultiChannel({channel:"email",content:"Hello, verify your password."});expect(r.signals.map(s=>s.code)).toContain("EMAIL_HEADERS_MISSING");});
+ it("detects failing SPF and mismatched Reply-To domains",()=>{const r=analyzeMultiChannel({channel:"email",content:"Please pay now.",headers:"From: Billing <billing@trusted.example>\\nReply-To: Help <support@other.example>\\nAuthentication-Results: mx; spf=fail; dkim=pass; dmarc=fail"});expect(r.signals.map(s=>s.code)).toContain("EMAIL_SPF_NOT_PASSING");expect(r.signals.map(s=>s.code)).toContain("EMAIL_REPLY_TO_DOMAIN_MISMATCH");});
  it("rejects empty and excessive content",()=>{expect(()=>analyzeMultiChannel({channel:"sms",content:" "})).toThrow();expect(()=>analyzeMultiChannel({channel:"sms",content:"a".repeat(12001)})).toThrow();});
 });
