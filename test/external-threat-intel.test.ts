@@ -66,13 +66,17 @@ describe("optional multi-source threat intelligence", () => {
 
   it("uses only fixed provider endpoints and strips credentials, query strings and fragments", async () => {
     const urls: string[] = [];
-    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const requestBodies: string[] = [];
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       urls.push(String(input));
+      if (typeof init?.body === "string") requestBodies.push(init.body);
       return new Response(JSON.stringify({ matches: [] }), { status: 200 });
     });
     await lookupExternalThreatIntelligence({ GOOGLE_SAFE_BROWSING_API_KEY: "test-google" }, "https://user:pass@example.com/path?token=private#fragment", fetcher as any);
     expect(urls).toHaveLength(1);
     expect(urls[0]).toContain("safebrowsing.googleapis.com");
     expect(urls[0]).not.toContain("example.com");
+    expect(requestBodies.join(" ")).toContain("https%3A%2F%2Fexample.com%2Fpath");
+    expect(requestBodies.join(" ")).not.toContain("private");
   });
 });
