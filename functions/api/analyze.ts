@@ -30,6 +30,6 @@ export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
     }
    }catch(error){console.error("CHANNEL_ANALYSIS_PERSISTENCE_FAILED",error instanceof Error?error.name:"UnknownError");}
   }
-  return json({...result,persistence,privacy:{rawContentStored:false,stored:"channel, SHA-256 fingerprint, risk score, risk level and findings only"}});
+  return json({...result,persistence,privacy:{rawContentStored:false,stored:"channel, risk score, risk level and findings only"}});
  }catch(error){return json({error:error instanceof Error?error.message:"Analysis failed."},400);}
 };
