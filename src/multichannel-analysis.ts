@@ -48,10 +48,10 @@ export function analyzeMultiChannel(input:{channel:AnalysisChannel;content:strin
  for(const url of urls){try{const parsed=new URL(url);if(SHORTENERS.has(parsed.hostname.toLowerCase()))add(signals,"SHORTENED_URL","Shortened link hides its destination","medium",12,"A URL-shortening domain was found: "+parsed.hostname,"Do not open it until its final destination is checked.");if(parsed.protocol!=="https:")add(signals,"INSECURE_LINK","Link does not use HTTPS","low",6,"A submitted link uses HTTP.","Avoid submitting sensitive information over an unencrypted connection.");}catch{add(signals,"URL_PARSE_WARNING","A link could not be parsed","low",4,"A URL-like string could not be parsed reliably.","Check the link carefully and do not open it to test it.");}}
  if(channel==="email"){
   const h=(input.headers||"").toLowerCase();
-  const headerLines=h.split(/\\r?\\n/);
+  const headerLines=h.split(String.fromCharCode(10));
   const authResults=headerLines.find(line=>line.startsWith("authentication-results:"))||h;
   for(const key of ["spf","dkim","dmarc"]){
-   const m=authResults.match(new RegExp("\\\\b"+key+"=([a-z]+)","i"));
+   const m=authResults.match(new RegExp(key+"=([a-z]+)","i"));
    if(m&&m[1]!=="pass")add(signals,"EMAIL_"+key.toUpperCase()+"_NOT_PASSING",key.toUpperCase()+" authentication not passing","medium",10,"Provided header reports "+key.toUpperCase()+"="+m[1].slice(0,40),"Treat sender authenticity as unverified; inspect full Received and Authentication-Results headers.");
    else if(m&&m[1]==="pass")add(signals,"EMAIL_"+key.toUpperCase()+"_PASS",key.toUpperCase()+" authentication passed","info",0,"Provided header text reports "+key.toUpperCase()+"=pass.","A passing result helps authenticate the sending domain but does not prove the message content is legitimate.");
   }
