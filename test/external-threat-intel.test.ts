@@ -64,13 +64,13 @@ describe("optional multi-source threat intelligence", () => {
     expect(result.providers.find(provider => provider.source === "phishtank")?.status).toBe("not_configured");
   });
 
-  it("does not call arbitrary submitted hosts; requests only fixed provider endpoints", async () => {
+  it("uses only fixed provider endpoints and strips credentials, query strings and fragments", async () => {
     const urls: string[] = [];
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       urls.push(String(input));
       return new Response(JSON.stringify({ matches: [] }), { status: 200 });
     });
-    await lookupExternalThreatIntelligence({ GOOGLE_SAFE_BROWSING_API_KEY: "test-google" }, "https://example.com/path", fetcher as any);
+    await lookupExternalThreatIntelligence({ GOOGLE_SAFE_BROWSING_API_KEY: "test-google" }, "https://user:pass@example.com/path?token=private#fragment", fetcher as any);
     expect(urls).toHaveLength(1);
     expect(urls[0]).toContain("safebrowsing.googleapis.com");
     expect(urls[0]).not.toContain("example.com");
