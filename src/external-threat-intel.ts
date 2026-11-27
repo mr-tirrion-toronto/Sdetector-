@@ -98,13 +98,14 @@ async function urlhaus(url: string, key: string, fetcher: FetchLike): Promise<Ex
 async function phishTank(url: string, key: string, fetcher: FetchLike): Promise<ExternalProviderResult> {
   const response = await request(fetcher, "https://checkurl.phishtank.com/checkurl/", {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+    headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json", "user-agent": "ScamDetector/1.0 (defensive URL reputation lookup)" },
     body: new URLSearchParams({ url, format: "json", app_key: key }).toString()
   });
   if (!response.ok) throw new Error("HTTP_" + response.status);
   const payload = await boundedJson(response);
   const result = payload?.results;
-  const verified = result?.in_database === true && result?.verified === true && result?.valid === true;
+  const isTrue = (value: unknown) => value === true || value === "y" || value === "yes";
+  const verified = isTrue(result?.in_database) && isTrue(result?.verified) && isTrue(result?.valid);
   return {
     source: "phishtank", status: "ok", checkedAt: new Date().toISOString(), matched: verified, confirmed: verified, matchCount: verified ? 1 : 0,
     summary: verified ? "PhishTank reports this URL as a verified, online phishing URL." : "No verified, online PhishTank match was returned.",
