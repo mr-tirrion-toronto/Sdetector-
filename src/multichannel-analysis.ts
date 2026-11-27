@@ -48,7 +48,15 @@ export function analyzeMultiChannel(input:{channel:AnalysisChannel;content:strin
  for(const url of urls){try{const parsed=new URL(url);if(SHORTENERS.has(parsed.hostname.toLowerCase()))add(signals,"SHORTENED_URL","Shortened link hides its destination","medium",12,"A URL-shortening domain was found: "+parsed.hostname,"Do not open it until its final destination is checked.");if(parsed.protocol!=="https:")add(signals,"INSECURE_LINK","Link does not use HTTPS","low",6,"A submitted link uses HTTP.","Avoid submitting sensitive information over an unencrypted connection.");}catch{add(signals,"URL_PARSE_WARNING","A link could not be parsed","low",4,"A URL-like string could not be parsed reliably.","Check the link carefully and do not open it to test it.");}}
  if(channel==="email"){
   const h=(input.headers||"").toLowerCase();
-  for(const key of ["spf","dkim","dmarc"]){const re=new RegExp("(?:^|\\n)"+key+"=([^\\n]+)","i");const m=h.match(re);if(m&&/fail|softfail|none|neutral|permerror|temperror/.test(m[1]))add(signals,"EMAIL_"+key.toUpperCase()+"_NOT_PASSING",key.toUpperCase()+" authentication not passing","medium",10,"Provided header reports "+key.toUpperCase()+"="+m[1].slice(0,80),"Treat sender authenticity as unverified; inspect full Received and Authentication-Results headers.");}
+  const authResults=h.match(/authentication-results:[^\\n]*/i)?.[0]||h;
+  for(const key of ["spf","dkim","dmarc"]){
+   const m=authResults.match(new RegExp("\\b"+key+"=([a-z]+)","i"));
+   if(m&&m[1]!=="pass")add(signals,"EMAIL_"+key.toUpperCase()+"_NOT_PASSING",key.toUpperCase()+" authentication not passing","medium",10,"Provided header reports "+key.toUpperCase()+"="+m[1].slice(0,40),"Treat sender authenticity as unverified; inspect full Received and Authentication-Results headers.");
+   else if(m&&m[1]==="pass")add(signals,"EMAIL_"+key.toUpperCase()+"_PASS",key.toUpperCase()+" authentication passed","info",0,"Provided header text reports "+key.toUpperCase()+"=pass.","A passing result helps authenticate the sending domain but does not prove the message content is legitimate.");
+  }
+  const fromDomain=h.match(/(?:^|\\n)from:[^\\n]*@([a-z0-9.-]+)/i)?.[1];
+  const replyDomain=h.match(/(?:^|\\n)reply-to:[^\\n]*@([a-z0-9.-]+)/i)?.[1];
+  if(fromDomain&&replyDomain&&fromDomain!==replyDomain)add(signals,"EMAIL_REPLY_TO_DOMAIN_MISMATCH","Reply-To domain differs from From domain","medium",14,"From and Reply-To headers show different domains.","Verify the reply destination independently before responding.");
   if(!h)add(signals,"EMAIL_HEADERS_MISSING","Email headers were not supplied","info",0,"Only message text was provided; sender authentication cannot be assessed.","Include full original headers for SPF, DKIM, DMARC and routing analysis.");
  }
  if(channel==="phone"&&!phone.numbers.length)add(signals,"NO_PHONE_FOUND","No phone number found","info",0,"No recognisable phone number was found in the submitted content.","Enter a number with its international calling code, for example +255…");
