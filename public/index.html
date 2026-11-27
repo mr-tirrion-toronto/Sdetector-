@@ -120,6 +120,7 @@ function renderResult(data){
   const knownThreat=assessment==='known_threat_detected';
   const findings=Array.isArray(data.findings)?data.findings:[];
   const intel=data.threatIntelligence||{status:'not_configured',feeds:[]};
+  const externalIntel=data.externalThreatIntelligence||{status:'not_configured',providers:[]};
   const domainIntel=data.domainIntelligence||{status:'unavailable'};
   const verdict=domainIntel.verdict||{};
   const registration=domainIntel.registration||{};
@@ -228,6 +229,13 @@ function renderResult(data){
   const intelNote=knownThreat?'A matching indicator was found in a threat-intelligence source.':
     intel.status==='available'?'No exact match was found in the current feeds. New or unreported threats may still exist.':
     'A missing match is not evidence that the website is safe.';
+  const externalProviderRows=(Array.isArray(externalIntel.providers)?externalIntel.providers:[]).map(provider=>{
+    const providerName=String(provider.source||'provider').replace(/_/g,' ').toUpperCase();
+    const state=String(provider.status||'unknown');
+    const label=state==='ok'?(provider.matched?'Match found':'No match'):state==='not_configured'?'Not configured':'Unavailable';
+    return '<div class="feed-row"><span>'+escapeHtml(providerName)+' · '+escapeHtml(label)+'</span><b>'+escapeHtml(provider.summary||'No provider detail')+'</b></div>';
+  }).join('');
+  const externalProviderPanel='<div class="feed-panel"><strong>Multi-source reputation checks · '+escapeHtml(externalIntel.status||'not configured')+'</strong>'+(externalProviderRows||'<div class="feed-row"><span>No external reputation provider results.</span></div>')+'<p class="feed-note">When configured, Google Safe Browsing, URLhaus, PhishTank and VirusTotal are queried independently. URL credentials, query parameters and fragments are removed before external lookups. VirusTotal vendor counts are corroborating signals, not a definitive verdict. A missing match is not proof of safety.</p></div>';
   const ai=data.aiAnalysis||{status:'not_configured'};
   const aiAnalysisPanel='<div class="feed-panel ai-analysis"><strong>AI-powered analysis · '+(ai.status==='available'?'Complete':ai.status==='not_configured'?'Not configured':'Temporarily unavailable')+'</strong>'+
     (ai.status==='available'?'<div class="ai-summary">'+escapeHtml(ai.summary).replace(/\n/g,'<br>')+'</div>':
@@ -241,6 +249,7 @@ function renderResult(data){
     '<div class="feed-panel"><strong>Threat intelligence · '+escapeHtml(intelLabel)+'</strong>'+
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
+    externalProviderPanel+
     domainPanel+
     livePanel+evidencePanel+legitimacyPanel+advancedPanel+
     '<div class="finding-title">Detected signals · '+findings.length+'</div>'+
