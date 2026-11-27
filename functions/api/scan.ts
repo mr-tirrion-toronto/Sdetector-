@@ -35,6 +35,42 @@ const SIGNAL_LABELS: Record<string, string> = {
 };
 
 
+async function generateGeminiContentText(env: Env, instructions: string, input: string, maxOutputTokens: number): Promise<string | null> {
+  if (!env.GEMINI_API_KEY) return null;
+  const model = env.GEMINI_MODEL || "gemini-3.8-flash";
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: instructions }] },
+        contents: [{ role: "user", parts: [{ text: input }] }],
+        generationConfig: { maxOutputTokens }
+      }),
+      signal: AbortSignal.timeout(25000)
+    });
+    if (!response.ok) {
+      let code = "unknown";
+      try {
+        const payload: any = await response.json();
+        code = String(payload?.error?.status ?? payload?.error?.code ?? "unknown").slice(0, 80);
+      } catch { /* Do not log response bodies or secrets. */ }
+      console.error("GEMINI_GENERATE_CONTENT_ERROR", response.status, code);
+      return null;
+    }
+    const payload: any = await response.json();
+    const answer = (Array.isArray(payload.candidates) ? payload.candidates : [])
+      .flatMap((candidate: any) => Array.isArray(candidate?.content?.parts)
+        ? candidate.content.parts.filter((part: any) => typeof part?.text === "string").map((part: any) => part.text) : [])
+      .join("\n").trim();
+    if (!answer) console.error("GEMINI_GENERATE_CONTENT_EMPTY");
+    return answer || null;
+  } catch (error) {
+    console.error("GEMINI_GENERATE_CONTENT_FAILED", error instanceof Error ? error.name : "UnknownError");
+    return null;
+  }
+}
+
 async function generateGeminiText(env: Env, instructions: string, input: string, maxOutputTokens: number): Promise<string | null> {
   if (!env.GEMINI_API_KEY) return null;
   const model = env.GEMINI_MODEL || "gemini-3.8-flash";
@@ -55,7 +91,7 @@ async function generateGeminiText(env: Env, instructions: string, input: string,
         providerErrorCode = String(errorPayload?.error?.status ?? errorPayload?.error?.code ?? errorPayload?.error?.message ?? "unknown").slice(0, 80);
       } catch { /* Never log provider response bodies or secrets. */ }
       console.error("GEMINI_FALLBACK_ERROR", response.status, providerErrorCode, response.headers.get("x-request-id") ?? "no-request-id");
-      return null;
+      return await generateGeminiContentText(env, instructions, input, maxOutputTokens);
     }
     const payload: any = await response.json();
     let answer = typeof payload.output_text === "string" ? payload.output_text.trim() : "";
@@ -70,11 +106,14 @@ async function generateGeminiText(env: Env, instructions: string, input: string,
         .flatMap((item: any) => Array.isArray(item?.content) ? item.content.filter((part: any) => (part?.type === "output_text" || part?.type === "text") && typeof part.text === "string").map((part: any) => part.text) : [])
         .join("\n").trim();
     }
-    if (!answer) console.error("GEMINI_FALLBACK_EMPTY_RESPONSE", typeof payload.status === "string" ? payload.status : "unknown");
-    return answer || null;
+    if (!answer) {
+      console.error("GEMINI_FALLBACK_EMPTY_RESPONSE", typeof payload.status === "string" ? payload.status : "unknown");
+      return await generateGeminiContentText(env, instructions, input, maxOutputTokens);
+    }
+    return answer;
   } catch (error) {
     console.error("GEMINI_FALLBACK_FAILED", error instanceof Error ? error.name : "UnknownError");
-    return null;
+    return await generateGeminiContentText(env, instructions, input, maxOutputTokens);
   }
 }
 
