@@ -6,7 +6,7 @@ export interface BusinessClaimAssessment {
   findings: Finding[];
   payoutVerification: "not_verified_from_public_page";
   operatorVerification: "not_independently_verified";
-  operatorDisclosure: { legalEntityDetected: boolean; contactDetailsDetected: boolean; termsLinkDetected: boolean; privacyLinkDetected: boolean; operatorNameCandidates: string[] };
+  operatorDisclosure: { applicable: boolean; legalEntityDetected: boolean; contactDetailsDetected: boolean; termsLinkDetected: boolean; privacyLinkDetected: boolean; operatorNameCandidates: string[] };
   note: string;
 }
 
@@ -14,7 +14,7 @@ export interface BusinessClaimAssessment {
  * Detects commercial earning and payout claims in public page text.
  * These are explainable rules, not an AI verdict and not proof of fraud.
  */
-export function analyzeBusinessClaims(text: string, html = ""): BusinessClaimAssessment {
+export function analyzeBusinessClaims(text: string, html = "", hostname = ""): BusinessClaimAssessment {
   const source = text.slice(0, 32000);
   const normalized = source.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
   const signals: string[] = [];
@@ -94,7 +94,7 @@ export function analyzeBusinessClaims(text: string, html = ""): BusinessClaimAss
       "Look for independently verifiable payment evidence, complaints and regulator or company records. Screenshots and testimonials can be fabricated or selectively presented.");
   }
 
-  if (!legalEntityDetected || !contactDetailsDetected || !termsLinkDetected || !privacyLinkDetected) {
+  if (operatorDisclosureApplicable && (!legalEntityDetected || !contactDetailsDetected || !termsLinkDetected || !privacyLinkDetected)) {
     signals.push("operator_identity_disclosure_incomplete");
     add("BUSINESS_OPERATOR_DETAILS_INCOMPLETE", "Public operator details are incomplete or not detectable", "info", 0,
       "The captured page does not expose all expected operator details (legal entity, contact channel, Terms of Service and Privacy Policy). This may reflect an incomplete page capture and is not proof of fraud. The operator has not been independently verified against an official company registry.",
@@ -108,7 +108,7 @@ export function analyzeBusinessClaims(text: string, html = ""): BusinessClaimAss
     findings,
     payoutVerification: "not_verified_from_public_page",
     operatorVerification: "not_independently_verified",
-    operatorDisclosure: { legalEntityDetected, contactDetailsDetected, termsLinkDetected, privacyLinkDetected, operatorNameCandidates },
+    operatorDisclosure: { applicable: operatorDisclosureApplicable, legalEntityDetected, contactDetailsDetected, termsLinkDetected, privacyLinkDetected, operatorNameCandidates },
     note: "Public page content cannot prove that a platform pays users. Verify payouts independently and never pay money to unlock wages or withdrawals."
   };
 }
