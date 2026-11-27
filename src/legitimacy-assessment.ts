@@ -53,9 +53,11 @@ export function assessLegitimacy(input:{
  const page=live?.websiteContent.data;
  const disclosure=page?.operatorDisclosure;
  checks.push(disclosure
-  ?disclosure.legalEntityDetected&&disclosure.contactDetailsDetected&&disclosure.termsLinkDetected&&disclosure.privacyLinkDetected
-   ?{id:"operator_disclosure",label:"Public operator disclosure",status:"observed",evidence:"The captured page contains a legal-entity indicator, contact details, Terms and Privacy links. These statements have not been independently verified.",source:"Static public-page inspection"}
-   :{id:"operator_disclosure",label:"Public operator disclosure",status:"warning",evidence:"One or more expected operator disclosures were not detected in the captured page. Page capture may be incomplete.",source:"Static public-page inspection"}
+  ?disclosure.applicable===false
+   ?{id:"operator_disclosure",label:"Public operator disclosure",status:"manual_review",evidence:"Not applicable: this is a reserved documentation hostname, not an ordinary commercial website.",source:"Reserved documentation-domain classification"}
+   :disclosure.legalEntityDetected&&disclosure.contactDetailsDetected&&disclosure.termsLinkDetected&&disclosure.privacyLinkDetected
+    ?{id:"operator_disclosure",label:"Public operator disclosure",status:"observed",evidence:"The captured page contains a legal-entity indicator, contact details, Terms and Privacy links. These statements have not been independently verified.",source:"Static public-page inspection"}
+    :{id:"operator_disclosure",label:"Public operator disclosure",status:"warning",evidence:"One or more expected operator disclosures were not detected in the captured page. Page capture may be incomplete.",source:"Static public-page inspection"}
   :{id:"operator_disclosure",label:"Public operator disclosure",status:"unavailable",evidence:"The public page could not be inspected.",source:"Static public-page inspection"});
  const advanceFee=input.findings.filter(f=>["BUSINESS_PAY_TO_WITHDRAW","BUSINESS_UPFRONT_WORK_FEE","BUSINESS_RECHARGE_TO_EARN"].includes(f.code));
  checks.push(advanceFee.length
