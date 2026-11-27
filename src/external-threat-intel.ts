@@ -155,11 +155,17 @@ export async function lookupExternalThreatIntelligence(
   fetcher: FetchLike = fetch
 ): Promise<ExternalThreatIntelResult> {
   const url = new URL(rawUrl);
+  // Never forward credentials, query parameters or fragments to third-party reputation providers.
+  url.username = "";
+  url.password = "";
+  url.search = "";
+  url.hash = "";
+  const providerUrl = url.toString();
   const configured: Array<{ source: ExternalThreatSource; key: string | undefined; run: (key: string) => Promise<ExternalProviderResult> }> = [
-    { source: "google_safe_browsing", key: env.GOOGLE_SAFE_BROWSING_API_KEY, run: key => googleSafeBrowsing(url.toString(), key, fetcher) },
-    { source: "urlhaus", key: env.URLHAUS_AUTH_KEY, run: key => urlhaus(url.toString(), key, fetcher) },
-    { source: "phishtank", key: env.PHISHTANK_API_KEY, run: key => phishTank(url.toString(), key, fetcher) },
-    { source: "virustotal", key: env.VIRUSTOTAL_API_KEY, run: key => virusTotal(url.toString(), key, fetcher) }
+    { source: "google_safe_browsing", key: env.GOOGLE_SAFE_BROWSING_API_KEY, run: key => googleSafeBrowsing(providerUrl, key, fetcher) },
+    { source: "urlhaus", key: env.URLHAUS_AUTH_KEY, run: key => urlhaus(providerUrl, key, fetcher) },
+    { source: "phishtank", key: env.PHISHTANK_API_KEY, run: key => phishTank(providerUrl, key, fetcher) },
+    { source: "virustotal", key: env.VIRUSTOTAL_API_KEY, run: key => virusTotal(providerUrl, key, fetcher) }
   ];
   const providers = await Promise.all(configured.map(async item => {
     if (!item.key) return unavailable(item.source, "not_configured", "API credential is not configured.");
