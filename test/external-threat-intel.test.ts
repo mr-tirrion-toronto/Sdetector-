@@ -28,7 +28,7 @@ describe("optional multi-source threat intelligence", () => {
         return new Response(JSON.stringify({ query_status: "ok", url_status: "online" }), { status: 200 });
       }
       if (url.includes("checkurl.phishtank.com")) {
-        return new Response(JSON.stringify({ results: { in_database: true, verified: true, valid: true } }), { status: 200 });
+        return new Response(JSON.stringify({ results: { in_database: true, verified: "y", valid: "y" } }), { status: 200 });
       }
       if (url.includes("virustotal.com")) {
         return new Response(JSON.stringify({ data: { attributes: { last_analysis_stats: { malicious: 2, suspicious: 1, harmless: 5 } } } }), { status: 200 });
