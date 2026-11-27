@@ -4,7 +4,7 @@ import { canonicalJson, custodyEventHash, verifyCustodyChain } from "../../src/e
 
 interface Env { DATABASE_URL?: string }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-type EventType = "record_created" | "pdf_export_initiated" | "integrity_verified";
+type EventType = "record_created" | "pdf_export_initiated" | "integrity_verified" | "pdf_hash_recorded" | "pdf_hash_verified";
 
 async function appendEvent(sql: any, evidenceId: string, actorUserId: string, eventType: EventType, details: Record<string, unknown>) {
   const previousRows = await sql`SELECT sequence_no, event_hash FROM evidence_custody_events
