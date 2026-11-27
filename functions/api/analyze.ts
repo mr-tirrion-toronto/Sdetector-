@@ -19,8 +19,9 @@ export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
  if(data.headers!==undefined&&typeof data.headers!=="string")return json({error:"Email headers must be text."},400);
  if(data.fileName!==undefined&&typeof data.fileName!=="string")return json({error:"File name must be text."},400);
  if(data.mimeType!==undefined&&typeof data.mimeType!=="string")return json({error:"MIME type must be text."},400);
+ if(data.fileSignature!==undefined&&typeof data.fileSignature!=="string")return json({error:"File signature must be text."},400);
  try{
-  const result=analyzeMultiChannel({channel:data.channel as AnalysisChannel,content:data.content,countryCode:typeof data.countryCode==="string"?data.countryCode:undefined,headers:typeof data.headers==="string"?data.headers:undefined,fileName:typeof data.fileName==="string"?data.fileName:undefined,mimeType:typeof data.mimeType==="string"?data.mimeType:undefined});
+  const result=analyzeMultiChannel({channel:data.channel as AnalysisChannel,content:data.content,countryCode:typeof data.countryCode==="string"?data.countryCode:undefined,headers:typeof data.headers==="string"?data.headers:undefined,fileName:typeof data.fileName==="string"?data.fileName:undefined,mimeType:typeof data.mimeType==="string"?data.mimeType:undefined,fileSignature:typeof data.fileSignature==="string"?data.fileSignature:undefined});
   let phoneIntelligence:Awaited<ReturnType<typeof lookupPhoneIntelligence>>|null=null;
   if(result.channel==="phone"&&result.phoneNumbers.length){
    phoneIntelligence=await lookupPhoneIntelligence(result.phoneNumbers[0],env.ABSTRACT_PHONE_VALIDATION_API_KEY);
