@@ -25,7 +25,9 @@ export function analyzeBusinessClaims(text: string, html = "", hostname = ""): B
   const privacyLinkDetected = /<a\b[^>]*(?:href=["'][^"']*privacy[^"']*["']|>[^<]*privacy policy[^<]*<)/i.test(html);
   const operatorNameCandidates = Array.from(normalized.matchAll(/(?:operated by|owned by|registered as)\s+([^.;,]{3,80})/gi), match => match[1].trim()).filter(value => /limited|ltd|llc|inc|plc|gmbh|corporation/i.test(value)).slice(0, 3);
   const normalizedHost = hostname.toLowerCase().replace(/\.$/, "");
-  const operatorDisclosureApplicable = !(["example.com", "example.net", "example.org"].includes(normalizedHost) || [".example", ".invalid", ".test", ".localhost"].some(suffix => normalizedHost.endsWith(suffix)) || normalizedHost === "localhost");
+  const reservedExampleDomains = ["example.com", "example.net", "example.org"];
+  const isReservedExampleHost = reservedExampleDomains.some(domain => normalizedHost === domain || normalizedHost.endsWith("." + domain));
+  const operatorDisclosureApplicable = !(isReservedExampleHost || [".example", ".invalid", ".test", ".localhost"].some(suffix => normalizedHost.endsWith(suffix)) || normalizedHost === "localhost");
 
   const add = (code: string, title: string, severity: Finding["severity"], points: number,
     evidence: string, recommendation: string) => {
