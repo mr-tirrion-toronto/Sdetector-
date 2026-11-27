@@ -1,7 +1,8 @@
 import { neon } from "@neondatabase/serverless";
 import { analyzeMultiChannel, type AnalysisChannel } from "../../src/multichannel-analysis";
 import { getAuthenticatedUser, json } from "../../src/auth";
-interface Env { DATABASE_URL?:string }
+import { lookupPhoneIntelligence } from "../../src/phone-intelligence";
+interface Env { DATABASE_URL?:string; ABSTRACT_PHONE_VALIDATION_API_KEY?:string }
 const CHANNELS=new Set<AnalysisChannel>(["sms","email","phone","whatsapp","telegram","social","job","investment","qr","file"]);
 export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
  if(!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return json({error:"Content-Type must be application/json."},415);
@@ -20,6 +21,22 @@ export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
  if(data.mimeType!==undefined&&typeof data.mimeType!=="string")return json({error:"MIME type must be text."},400);
  try{
   const result=analyzeMultiChannel({channel:data.channel as AnalysisChannel,content:data.content,countryCode:typeof data.countryCode==="string"?data.countryCode:undefined,headers:typeof data.headers==="string"?data.headers:undefined,fileName:typeof data.fileName==="string"?data.fileName:undefined,mimeType:typeof data.mimeType==="string"?data.mimeType:undefined});
+  let phoneIntelligence:Awaited<ReturnType<typeof lookupPhoneIntelligence>>|null=null;
+  if(result.channel==="phone"&&result.phoneNumbers.length){
+   phoneIntelligence=await lookupPhoneIntelligence(result.phoneNumbers[0],env.ABSTRACT_PHONE_VALIDATION_API_KEY);
+   if(phoneIntelligence.status==="available"&&phoneIntelligence.valid===false){
+    result.signals.push({code:"PHONE_PROVIDER_INVALID",title:"Phone provider reports an invalid number",severity:"high",points:25,evidence:"The configured phone-intelligence provider reports that the number is invalid.",recommendation:"Do not rely on this number until it has been independently verified."});
+   }
+   if(phoneIntelligence.status==="available"&&phoneIntelligence.lineType&&/voip|virtual/i.test(phoneIntelligence.lineType)){
+    result.signals.push({code:"PHONE_VOIP_LINE_TYPE",title:"Internet-based or virtual phone line detected",severity:"medium",points:15,evidence:"The configured provider classifies this number as "+phoneIntelligence.lineType+".",recommendation:"A VoIP line is not automatically fraudulent. Verify the sender's identity through another trusted channel."});
+   }
+   if(phoneIntelligence.status==="available"){
+    result.score=Math.min(100,result.signals.reduce((sum,signal)=>sum+signal.points,0));
+    result.riskLevel=result.score>=65?"critical":result.score>=40?"high":result.score>=18?"guarded":"low";
+    result.verdict=result.signals.some(signal=>signal.points>0)?"suspicious_signals_detected":"no_obvious_signals";
+    result.limitations.push(...phoneIntelligence.limitations);
+   }else result.limitations.push(...phoneIntelligence.limitations);
+  }
   let persistence:"saved"|"not_configured_or_unavailable"="not_configured_or_unavailable";
   if(env.DATABASE_URL){
    try{
@@ -43,6 +60,6 @@ export const onRequestPost:PagesFunction<Env>=async({request,env})=>{
     }
    }catch(error){console.error("CHANNEL_ANALYSIS_PERSISTENCE_FAILED",error instanceof Error?error.name:"UnknownError");}
   }
-  return json({...result,persistence,privacy:{rawContentStored:false,stored:"channel, risk score, risk level and findings only"}});
+  return json({...result,phoneIntelligence,persistence,privacy:{rawContentStored:false,stored:"channel, risk score, risk level and findings only"}});
  }catch(error){return json({error:error instanceof Error?error.message:"Analysis failed."},400);}
 };
