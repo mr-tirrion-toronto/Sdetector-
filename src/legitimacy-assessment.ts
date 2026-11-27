@@ -1,6 +1,7 @@
 import type { BrandAssessment } from "./brand-intelligence";
 import type { LiveInspection } from "./live-inspection";
 import type { ThreatIntelResult } from "./threat-intel";
+import type { ExternalThreatIntelResult } from "./external-threat-intel";
 import type { IndependentEvidence } from "./independent-evidence";
 import type { Finding } from "./analyzer";
 
@@ -15,12 +16,16 @@ export interface LegitimacyAssessment {
 }
 export function assessLegitimacy(input:{
  brands:BrandAssessment;live:LiveInspection|null;threat:ThreatIntelResult;
+ externalThreat?:ExternalThreatIntelResult;
  findings:Finding[];independentEvidence:IndependentEvidence;
 }):LegitimacyAssessment{
  const checks:LegitimacyCheck[]=[];
  const threat=input.threat;
- checks.push(threat.matched
-  ?{id:"threat_reputation",label:"Threat reputation",status:"warning",evidence:"A known-threat indicator matched one or more configured threat-intelligence records.",source:threat.feeds.filter(f=>f.status==="ok").map(f=>f.source).join(", ")||"Threat intelligence"}
+ const externalMatches=input.externalThreat?.providers.filter(provider=>provider.confirmed&&provider.matched)??[];
+ const hasKnownThreat=threat.matched||externalMatches.length>0;
+ const threatSources=[...threat.feeds.filter(f=>f.status==="ok").map(f=>f.source),...externalMatches.map(provider=>provider.source.replace(/_/g," "))];
+ checks.push(hasKnownThreat
+  ?{id:"threat_reputation",label:"Threat reputation",status:"warning",evidence:"A known-threat indicator matched one or more configured threat-intelligence records.",source:threatSources.join(", ")||"Threat intelligence"}
   :threat.status==="available"
    ?{id:"threat_reputation",label:"Threat reputation",status:"no_match",evidence:"No exact match was found in the currently available feeds. This does not prove safety or legitimacy.",source:threat.feeds.filter(f=>f.status==="ok").map(f=>f.source).join(", ")}
    :{id:"threat_reputation",label:"Threat reputation",status:"unavailable",evidence:"Threat-intelligence coverage was unavailable, partial or not configured; no clean verdict can be inferred.",source:"Configured threat-intelligence providers"});
@@ -60,7 +65,7 @@ export function assessLegitimacy(input:{
  checks.push({id:"payouts",label:"Actual customer / worker payouts",status:"manual_review",evidence:"No bank settlement, payment-processor record, escrow evidence or independently verified payout was obtained. Website testimonials and screenshots are not proof.",source:"Not available from public-page inspection"});
  const warnings=checks.filter(c=>c.status==="warning").length;
  const positiveObservations=checks.filter(c=>c.status==="observed").length;
- const status:LegitimacyAssessment["status"]=threat.matched?"known_threat":matches.length?"possible_impersonation":advanceFee.length?"suspicious_business_claims":positiveObservations>=2?"evidence_available_not_verified":"not_verified";
+ const status:LegitimacyAssessment["status"]=hasKnownThreat?"known_threat":matches.length?"possible_impersonation":advanceFee.length?"suspicious_business_claims":positiveObservations>=2?"evidence_available_not_verified":"not_verified";
  const label=status==="known_threat"?"Known threat detected":status==="possible_impersonation"?"Possible brand impersonation":status==="suspicious_business_claims"?"Suspicious business/payment claims":status==="evidence_available_not_verified"?"Some positive observations · Not verified":"Legitimacy not verified";
  const summary=status==="known_threat"?"A configured threat-intelligence source matched this hostname or URL. Do not interact with it.":
   status==="possible_impersonation"?"The submitted domain has evidence consistent with possible brand impersonation. Confirm the destination through the brand's independently sourced official channel.":
