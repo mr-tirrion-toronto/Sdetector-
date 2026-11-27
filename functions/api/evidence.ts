@@ -7,7 +7,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 type EventType = "record_created" | "pdf_export_initiated" | "integrity_verified" | "pdf_hash_recorded" | "pdf_hash_verified" | "manifest_signed";
 
 function decodeBase64(value: string): Uint8Array {
-  const binary = atob(value.replace(/\\s+/g, ""));
+  const binary = atob(value.replace(/\s+/g, ""));
   return Uint8Array.from(binary, character => character.charCodeAt(0));
 }
 function encodeHex(bytes: Uint8Array): string {
@@ -119,7 +119,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         (id,scan_id,user_id,manifest_version,manifest,manifest_sha256)
         VALUES (${manifestId},${scan.id},${user.id},1,${JSON.stringify(manifest)}::jsonb,${manifestSha256})
         ON CONFLICT (scan_id,user_id) DO NOTHING`;
-      const recordRows = await sql`SELECT id::text, manifest, manifest_sha256, created_at
+      const recordRows = await sql`SELECT id::text, manifest, manifest_sha256, created_at, manifest_signature, signing_key_id, signing_public_key, signature_algorithm
         FROM evidence_records WHERE scan_id = ${scan.id} AND user_id = ${user.id} LIMIT 1`;
       const record = (recordRows as Array<Record<string, any>>)[0];
       if (!record) return json({ error: "Could not persist the evidence manifest." }, 503);
@@ -138,24 +138,29 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       }
       let signingStatus: "not_configured" | "signed" | "unavailable" = "not_configured";
       try {
-        if (env.EVIDENCE_SIGNING_PRIVATE_KEY && env.EVIDENCE_SIGNING_PUBLIC_KEY && env.EVIDENCE_SIGNING_KEY_ID) {
-          let signature = record.manifest_signature ? String(record.manifest_signature).trim() : "";
-          if (!signature) {
-            signature = await createEd25519Signature(String(record.manifest_sha256).trim(), env) ?? "";
-            if (signature) {
-              await sql`UPDATE evidence_records SET manifest_signature = ${signature},
-                signing_key_id = ${env.EVIDENCE_SIGNING_KEY_ID},
-                signing_public_key = ${env.EVIDENCE_SIGNING_PUBLIC_KEY},
-                signature_algorithm = 'Ed25519'
-                WHERE id = ${record.id} AND manifest_signature IS NULL`;
-            }
+        const configured = Boolean(env.EVIDENCE_SIGNING_PRIVATE_KEY && env.EVIDENCE_SIGNING_PUBLIC_KEY && env.EVIDENCE_SIGNING_KEY_ID);
+        const partiallyConfigured = Boolean(env.EVIDENCE_SIGNING_PRIVATE_KEY || env.EVIDENCE_SIGNING_PUBLIC_KEY || env.EVIDENCE_SIGNING_KEY_ID);
+        if (partiallyConfigured && !configured) signingStatus = "unavailable";
+        let signedRows = await sql`SELECT manifest_signature, signing_key_id, signing_public_key, signature_algorithm
+          FROM evidence_records WHERE id = ${record.id} LIMIT 1`;
+        let signed = (signedRows as Array<Record<string, any>>)[0];
+        if (!signed?.manifest_signature && configured) {
+          const signature = await createEd25519Signature(String(record.manifest_sha256).trim(), env);
+          if (signature) {
+            await sql`UPDATE evidence_records SET manifest_signature = ${signature},
+              signing_key_id = ${env.EVIDENCE_SIGNING_KEY_ID},
+              signing_public_key = ${env.EVIDENCE_SIGNING_PUBLIC_KEY},
+              signature_algorithm = 'Ed25519'
+              WHERE id = ${record.id} AND manifest_signature IS NULL`;
           }
-          const signedRows = await sql`SELECT manifest_signature, signing_key_id, signing_public_key, signature_algorithm
+          signedRows = await sql`SELECT manifest_signature, signing_key_id, signing_public_key, signature_algorithm
             FROM evidence_records WHERE id = ${record.id} LIMIT 1`;
-          const signed = (signedRows as Array<Record<string, any>>)[0];
-          if (signed?.manifest_signature && signed?.signing_public_key &&
-              await verifyEd25519Signature(String(record.manifest_sha256).trim(), String(signed.manifest_signature).trim(), signed.signing_public_key)) {
-            signingStatus = "signed";
+          signed = (signedRows as Array<Record<string, any>>)[0];
+        }
+        if (signed?.manifest_signature && signed?.signing_public_key) {
+          const valid = await verifyEd25519Signature(String(record.manifest_sha256).trim(), String(signed.manifest_signature).trim(), signed.signing_public_key);
+          signingStatus = valid ? "signed" : "unavailable";
+          if (valid) {
             const signedEventRows = await sql`SELECT sequence_no FROM evidence_custody_events
               WHERE evidence_id = ${record.id} AND event_type = 'manifest_signed' LIMIT 1`;
             if (!signedEventRows.length) {
@@ -165,9 +170,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
                 keyId: signed.signing_key_id
               });
             }
-          } else if (signed?.manifest_signature) {
-            signingStatus = "unavailable";
           }
+        } else if (configured) {
+          signingStatus = "unavailable";
         }
       } catch (error) {
         signingStatus = "unavailable";
