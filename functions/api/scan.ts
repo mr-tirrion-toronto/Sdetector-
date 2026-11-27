@@ -18,10 +18,10 @@ interface Env {
   OPENAI_MODEL?: string;
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
-  GOOGLE_SAFE_BROWSING_API_KEY?: string;
+  GOOGLE_WEB_RISK_API_KEY?: string;
   URLHAUS_AUTH_KEY?: string;
   PHISHTANK_API_KEY?: string;
-  VIRUSTOTAL_API_KEY?: string;
+  VIRUSTOTAL_PREMIUM_API_KEY?: string;
 }
 
 const BODY_LIMIT = 4096;
