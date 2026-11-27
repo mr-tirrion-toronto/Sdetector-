@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canonicalJson, custodyEventHash, verifyCustodyChain } from "../src/evidence-integrity";
+import { canonicalJson, custodyEventHash, sha256Hex, verifyCustodyChain } from "../src/evidence-integrity";
 
 describe("evidence integrity", () => {
+  it("computes a standard SHA-256 digest", async () => {
+    expect(await sha256Hex("abc")).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+  });
   it("canonicalizes object keys deterministically", () => {
     expect(canonicalJson({ b: 2, a: 1 })).toBe(canonicalJson({ a: 1, b: 2 }));
   });

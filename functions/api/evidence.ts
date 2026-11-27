@@ -4,7 +4,7 @@ import { canonicalJson, custodyEventHash, verifyCustodyChain } from "../../src/e
 
 interface Env { DATABASE_URL?: string }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-type EventType = "record_created" | "pdf_export_initiated" | "integrity_verified";
+type EventType = "record_created" | "pdf_export_initiated" | "integrity_verified" | "pdf_hash_recorded" | "pdf_hash_verified";
 
 async function appendEvent(sql: any, evidenceId: string, actorUserId: string, eventType: EventType, details: Record<string, unknown>) {
   const previousRows = await sql`SELECT sequence_no, event_hash FROM evidence_custody_events
@@ -121,12 +121,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
     if (typeof body?.evidenceId !== "string" || !UUID.test(body.evidenceId)) return json({ error: "Provide a valid scanId or evidenceId." }, 400);
     const eventType = body?.eventType as EventType;
-    if (!["pdf_export_initiated", "integrity_verified"].includes(eventType)) return json({ error: "Unsupported custody event." }, 400);
+    if (!["pdf_export_initiated", "integrity_verified", "pdf_hash_recorded", "pdf_hash_verified"].includes(eventType)) return json({ error: "Unsupported custody event." }, 400);
     const records = await sql`SELECT id, manifest, manifest_sha256 FROM evidence_records
       WHERE id = ${body.evidenceId} AND user_id = ${user.id} LIMIT 1`;
     const record = (records as Array<Record<string, any>>)[0];
     if (!record) return json({ error: "Evidence record not found in this account." }, 404);
-    if (eventType === "integrity_verified") {
+    if (eventType === "integrity_verified" || eventType === "pdf_hash_verified") {
       const { sha256Hex } = await import("../../src/evidence-integrity");
       const digest = await sha256Hex(canonicalJson(record.manifest));
       if (digest !== String(record.manifest_sha256).trim()) return json({ error: "Manifest integrity check failed; verification event was not recorded." }, 409);
@@ -141,9 +141,31 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       const chain = await verifyCustodyChain(events);
       if (!chain.valid) return json({ error: "Custody chain verification failed.", integrity: chain }, 409);
     }
-    const details = eventType === "pdf_export_initiated"
-      ? { format: "application/pdf", source: "report-print-control", savedFileConfirmed: false, note: "The browser print dialog was initiated; the server cannot verify whether the user saved a PDF." }
-      : { manifestSha256: String(record.manifest_sha256).trim(), verifiedBy: "server-side SHA-256 and custody-chain verification" };
+    let details: Record<string, unknown>;
+    if (eventType === "pdf_export_initiated") {
+      details = { format: "application/pdf", source: "report-print-control", savedFileConfirmed: false, note: "The browser print dialog was initiated; the server cannot verify whether the user saved a PDF." };
+    } else if (eventType === "integrity_verified") {
+      details = { manifestSha256: String(record.manifest_sha256).trim(), verifiedBy: "server-side SHA-256 and custody-chain verification" };
+    } else {
+      const suppliedHash = typeof body.pdfSha256 === "string" ? body.pdfSha256.toLowerCase() : "";
+      if (!/^[0-9a-f]{64}$/.test(suppliedHash)) return json({ error: "Provide a valid SHA-256 digest for the selected PDF." }, 400);
+      if (eventType === "pdf_hash_recorded") {
+        const fileSizeBytes = Number(body.fileSizeBytes);
+        if (!Number.isSafeInteger(fileSizeBytes) || fileSizeBytes < 8 || fileSizeBytes > 100 * 1024 * 1024) {
+          return json({ error: "PDF size must be between 8 bytes and 100 MB." }, 400);
+        }
+        details = { pdfSha256: suppliedHash, fileSizeBytes, mimeType: "application/pdf", hashMethod: "SHA-256 over selected PDF bytes in the user's browser", bytesUploaded: false, clientReported: true };
+      } else {
+        const previousHashes = await sql`SELECT sequence_no, details FROM evidence_custody_events
+          WHERE evidence_id = ${body.evidenceId} AND event_type = 'pdf_hash_recorded'
+          ORDER BY sequence_no DESC LIMIT 1`;
+        const previousHash = (previousHashes as Array<{sequence_no:number|string;details:Record<string,unknown>}>)[0];
+        if (!previousHash || String(previousHash.details?.pdfSha256 ?? "").toLowerCase() !== suppliedHash) {
+          return json({ error: "The selected PDF does not match the latest recorded PDF digest." }, 409);
+        }
+        details = { pdfSha256: suppliedHash, comparedWithRecordedSequence: Number(previousHash.sequence_no), verificationMethod: "Browser-computed SHA-256 compared with the account's recorded digest", clientReported: true };
+      }
+    }
     const event = await appendEvent(sql, body.evidenceId, user.id, eventType, details);
     return json({ status: "recorded", event });
   } catch (error) {
