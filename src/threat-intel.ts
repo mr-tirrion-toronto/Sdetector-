@@ -58,12 +58,18 @@ export async function lookupThreatIntelligence(sql: any, rawUrl: string): Promis
   ]);
 
   const now = Date.now();
-  const feeds = (statuses as Array<any>).map(feed => {
+  const storedFeeds = statuses as Array<any>;
+  const supportedSources = ["urlhaus", "phishtank", "phishunt"] as const;
+  const feeds = supportedSources.map(source => {
+    const feed = storedFeeds.find(item => item.source === source);
+    if (!feed) {
+      return { source, status: "not_configured" as const, lastUpdatedAt: null, itemCount: 0 };
+    }
     const lastSuccess = feed.last_success_at ? new Date(feed.last_success_at).getTime() : null;
     const stale = !lastSuccess || now - lastSuccess > 36 * 60 * 60 * 1000;
     return {
-      source: feed.source,
-      status: stale && feed.status === "ok" ? "stale" : feed.status,
+      source,
+      status: stale && feed.status === "ok" ? "stale" as const : feed.status,
       lastUpdatedAt: feed.last_success_at ?? null,
       itemCount: Number(feed.item_count ?? 0)
     };
@@ -73,7 +79,7 @@ export async function lookupThreatIntelligence(sql: any, rawUrl: string): Promis
   const fresh = feeds.filter(feed => feed.status === "ok");
   const status: ThreatIntelResult["status"] =
     configured.length === 0 ? "not_configured" :
-    fresh.length === configured.length && fresh.length > 0 ? "available" :
+    fresh.length === feeds.length ? "available" :
     fresh.length > 0 ? "partial" : "unavailable";
 
   const findings: Finding[] = (matches as Array<any>).map(match => {
