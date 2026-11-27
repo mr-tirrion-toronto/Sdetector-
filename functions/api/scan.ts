@@ -37,38 +37,40 @@ const SIGNAL_LABELS: Record<string, string> = {
 
 async function generateGeminiContentText(env: Env, instructions: string, input: string, maxOutputTokens: number): Promise<string | null> {
   if (!env.GEMINI_API_KEY) return null;
-  const model = env.GEMINI_MODEL || "gemini-3.8-flash";
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: instructions }] },
-        contents: [{ role: "user", parts: [{ text: input }] }],
-        generationConfig: { maxOutputTokens }
-      }),
-      signal: AbortSignal.timeout(25000)
-    });
-    if (!response.ok) {
-      let code = "unknown";
-      try {
-        const payload: any = await response.json();
-        code = String(payload?.error?.status ?? payload?.error?.code ?? "unknown").slice(0, 80);
-      } catch { /* Do not log response bodies or secrets. */ }
-      console.error("GEMINI_GENERATE_CONTENT_ERROR", response.status, code);
-      return null;
+  const models = [...new Set([env.GEMINI_MODEL || "gemini-3.8-flash", "gemini-3.5-flash-lite"])];
+  for (const model of models) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: instructions }] },
+          contents: [{ role: "user", parts: [{ text: input }] }],
+          generationConfig: { maxOutputTokens }
+        }),
+        signal: AbortSignal.timeout(25000)
+      });
+      if (!response.ok) {
+        let code = "unknown";
+        try {
+          const payload: any = await response.json();
+          code = String(payload?.error?.status ?? payload?.error?.code ?? "unknown").slice(0, 80);
+        } catch { /* Do not log response bodies or secrets. */ }
+        console.error("GEMINI_GENERATE_CONTENT_ERROR", model, response.status, code);
+        continue;
+      }
+      const payload: any = await response.json();
+      const answer = (Array.isArray(payload.candidates) ? payload.candidates : [])
+        .flatMap((candidate: any) => Array.isArray(candidate?.content?.parts)
+          ? candidate.content.parts.filter((part: any) => typeof part?.text === "string").map((part: any) => part.text) : [])
+        .join("\n").trim();
+      if (answer) return answer;
+      console.error("GEMINI_GENERATE_CONTENT_EMPTY", model);
+    } catch (error) {
+      console.error("GEMINI_GENERATE_CONTENT_FAILED", model, error instanceof Error ? error.name : "UnknownError");
     }
-    const payload: any = await response.json();
-    const answer = (Array.isArray(payload.candidates) ? payload.candidates : [])
-      .flatMap((candidate: any) => Array.isArray(candidate?.content?.parts)
-        ? candidate.content.parts.filter((part: any) => typeof part?.text === "string").map((part: any) => part.text) : [])
-      .join("\n").trim();
-    if (!answer) console.error("GEMINI_GENERATE_CONTENT_EMPTY");
-    return answer || null;
-  } catch (error) {
-    console.error("GEMINI_GENERATE_CONTENT_FAILED", error instanceof Error ? error.name : "UnknownError");
-    return null;
   }
+  return null;
 }
 
 async function generateGeminiText(env: Env, instructions: string, input: string, maxOutputTokens: number): Promise<string | null> {
