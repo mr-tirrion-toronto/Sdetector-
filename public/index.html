@@ -98,7 +98,7 @@ form.addEventListener('submit',async event=>{
   statusEl.textContent='Checking URL patterns, DNS, certificate history, registration data, page content and threat intelligence. This may take a few seconds…';
   resultEl.style.display='none';
   try{
-    const response=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({url:input.value.trim()})});
+    const response=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-ScamDetector-Language':(localStorage.getItem('scamDetectorLanguage')==='sw'?'sw':'en')},body:JSON.stringify({url:input.value.trim()})});
     const data=await response.json();
     if(!response.ok)throw new Error(data.error||'The scan could not be completed.');
     renderResult(data);
