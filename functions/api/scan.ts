@@ -450,18 +450,28 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   let previousSnapshot: WebsiteSnapshot | null = null;
   let previousCheckedAt: string | null = null;
   let historyAvailable = false;
-  try {
-    const historyRows = await sql`SELECT snapshot, created_at FROM scan_intelligence
-      WHERE hostname = ${result.hostname} ORDER BY created_at DESC LIMIT 1`;
-    const previous = (historyRows as Array<{snapshot:WebsiteSnapshot;created_at:string}>)[0];
-    if (previous?.snapshot) { previousSnapshot = previous.snapshot; previousCheckedAt = previous.created_at; }
+  if (authUser?.id) {
+    try {
+      const historyRows = await sql`SELECT intelligence.snapshot, intelligence.created_at
+        FROM scan_intelligence AS intelligence
+        INNER JOIN scans AS owner_scan ON owner_scan.id = intelligence.scan_id
+        WHERE owner_scan.user_id = ${authUser.id}
+          AND intelligence.hostname = ${result.hostname}
+        ORDER BY intelligence.created_at DESC LIMIT 1`;
+      const previous = (historyRows as Array<{snapshot:WebsiteSnapshot;created_at:string}>)[0];
+      if (previous?.snapshot) { previousSnapshot = previous.snapshot; previousCheckedAt = previous.created_at; }
+      historyAvailable = true;
+    } catch (error) {
+      console.warn("SCAN_CHANGE_HISTORY_UNAVAILABLE", error instanceof Error ? error.name : "UnknownError");
+    }
+  } else {
+    // Guest scans must never inherit another guest's or account's private scan history.
     historyAvailable = true;
-  } catch (error) {
-    console.warn("SCAN_CHANGE_HISTORY_UNAVAILABLE", error instanceof Error ? error.name : "UnknownError");
   }
   const changeMonitoring = historyAvailable
     ? await compareSnapshots(websiteSnapshot, previousSnapshot)
-    : {status:"history_unavailable" as const,fingerprint:null,previousFingerprint:null,changedFields:[],previousCheckedAt:null,checkedAt:new Date().toISOString(),note:"Change history is not available until the advanced-intelligence database migration is applied."};
+    : {status:"history_unavailable" as const,fingerprint:null,previousFingerprint:null,changedFields:[],previousCheckedAt:null,checkedAt:new Date().toISOString(),note:"Private change history is unavailable until the advanced-intelligence database migration is applied."};
+  if (!authUser?.id) changeMonitoring.note = "Sign in to keep change history private to your account. This guest scan is treated as a standalone baseline.";
   changeMonitoring.previousCheckedAt = previousCheckedAt;
   const legitimacyAssessment = assessLegitimacy({
     brands: brandAssessment, live: liveInspection, threat: threatIntelligence,
