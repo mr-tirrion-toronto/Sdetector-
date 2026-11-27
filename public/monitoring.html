@@ -47,4 +47,6 @@ listEl.addEventListener("click",async event=>{
  catch(error){statusEl.textContent=error instanceof Error?error.message:"Request failed.";button.disabled=false}
 });
 load().catch(error=>{listEl.innerHTML='<div class="empty">'+escapeHtml(error.message)+'</div>'});
-</script></body></html>
+</script>
+<script src="/language.js" defer></script>
+</body></html>
