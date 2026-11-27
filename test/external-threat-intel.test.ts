@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { lookupExternalThreatIntelligence } from "../src/external-threat-intel";
 
 const env = {
-  GOOGLE_SAFE_BROWSING_API_KEY: "test-google",
+  GOOGLE_WEB_RISK_API_KEY: "test-google",
   URLHAUS_AUTH_KEY: "test-urlhaus",
   PHISHTANK_API_KEY: "test-phishtank",
-  VIRUSTOTAL_API_KEY: "test-virustotal"
+  VIRUSTOTAL_PREMIUM_API_KEY: "test-virustotal"
 };
 
 describe("optional multi-source threat intelligence", () => {
@@ -21,8 +21,8 @@ describe("optional multi-source threat intelligence", () => {
   it("normalizes successful provider results and distinguishes authoritative matches from VT consensus", async () => {
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes("safebrowsing.googleapis.com")) {
-        return new Response(JSON.stringify({ matches: [{ threatType: "SOCIAL_ENGINEERING" }] }), { status: 200 });
+      if (url.includes("webrisk.googleapis.com")) {
+        return new Response(JSON.stringify({ threat: { threatTypes: ["SOCIAL_ENGINEERING"] } }), { status: 200 });
       }
       if (url.includes("urlhaus-api.abuse.ch")) {
         return new Response(JSON.stringify({ query_status: "ok", url_status: "online" }), { status: 200 });
@@ -48,18 +48,18 @@ describe("optional multi-source threat intelligence", () => {
 
   it("keeps provider failures separate and reports partial coverage", async () => {
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input).includes("safebrowsing.googleapis.com")) {
-        return new Response(JSON.stringify({ matches: [] }), { status: 200 });
+      if (String(input).includes("webrisk.googleapis.com")) {
+        return new Response(JSON.stringify({}), { status: 200 });
       }
       return new Response("provider unavailable", { status: 503 });
     });
     const result = await lookupExternalThreatIntelligence(
-      { GOOGLE_SAFE_BROWSING_API_KEY: "test-google", URLHAUS_AUTH_KEY: "test-urlhaus" },
+      { GOOGLE_WEB_RISK_API_KEY: "test-google", URLHAUS_AUTH_KEY: "test-urlhaus" },
       "https://example.com",
       fetcher as any
     );
     expect(result.status).toBe("partial");
-    expect(result.providers.find(provider => provider.source === "google_safe_browsing")?.status).toBe("ok");
+    expect(result.providers.find(provider => provider.source === "google_web_risk")?.status).toBe("ok");
     expect(result.providers.find(provider => provider.source === "urlhaus")?.status).toBe("unavailable");
     expect(result.providers.find(provider => provider.source === "phishtank")?.status).toBe("not_configured");
   });
@@ -72,9 +72,9 @@ describe("optional multi-source threat intelligence", () => {
       if (typeof init?.body === "string") requestBodies.push(init.body);
       return new Response(JSON.stringify({ matches: [] }), { status: 200 });
     });
-    await lookupExternalThreatIntelligence({ GOOGLE_SAFE_BROWSING_API_KEY: "test-google" }, "https://user:pass@example.com/path?token=private#fragment", fetcher as any);
+    await lookupExternalThreatIntelligence({ GOOGLE_WEB_RISK_API_KEY: "test-google" }, "https://user:pass@example.com/path?token=private#fragment", fetcher as any);
     expect(urls).toHaveLength(1);
-    expect(urls[0]).toContain("safebrowsing.googleapis.com");
+    expect(urls[0]).toContain("webrisk.googleapis.com");
     expect(urls[0]).not.toContain("example.com");
     expect(requestBodies.join(" ")).toContain("https://example.com/path");
     expect(requestBodies.join(" ")).not.toContain("private");
