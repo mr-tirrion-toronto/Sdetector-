@@ -76,7 +76,7 @@ describe("optional multi-source threat intelligence", () => {
     expect(urls).toHaveLength(1);
     expect(urls[0]).toContain("safebrowsing.googleapis.com");
     expect(urls[0]).not.toContain("example.com");
-    expect(requestBodies.join(" ")).toContain("https%3A%2F%2Fexample.com%2Fpath");
+    expect(requestBodies.join(" ")).toContain("https://example.com/path");
     expect(requestBodies.join(" ")).not.toContain("private");
   });
 });
