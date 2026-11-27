@@ -33,7 +33,7 @@ describe("analyzeBusinessClaims", () => {
   });
 
   it("does not flag missing business details on reserved documentation domains", () => {
-    const result = analyzeBusinessClaims("Example Domain. Learn more about domain examples.", "", "example.com");
+    const result = analyzeBusinessClaims("Example Domain. Learn more about domain examples.", "", "www.example.com");
     expect(result.operatorDisclosure.applicable).toBe(false);
     expect(result.signals).not.toContain("operator_identity_disclosure_incomplete");
     expect(result.findings.some(item => item.code === "BUSINESS_OPERATOR_DETAILS_INCOMPLETE")).toBe(false);
