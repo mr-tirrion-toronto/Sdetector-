@@ -108,5 +108,7 @@ function render(data){
 async function load(){ $("loading").classList.remove("hidden");$("loading").textContent="Authenticating administrator and loading platform telemetry…";$("denied").classList.add("hidden");try{const response=await fetch("/api/admin/overview",{headers:{Accept:"application/json"},cache:"no-store",credentials:"same-origin"});const body=await response.json().catch(()=>({}));if(response.status===401){showDenied("Your session is missing or expired. Sign in with the account assigned the administrator role.");return}if(response.status===403){showDenied("This account is signed in but does not have the administrator role. Ask the project owner to grant access after verifying your identity.");return}if(!response.ok)throw new Error(body.error||"Administrator dashboard unavailable.");render(body)}catch(error){showDenied(error instanceof Error?error.message:"Could not load administrator dashboard.")}}
 $("refresh").addEventListener("click",load);$("range").addEventListener("change",()=>{if(payload)render(payload)});$("logout").addEventListener("click",async()=>{try{await fetch("/api/auth/logout",{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin"})}finally{location.href="/account.html"}});load();
 </script>
+
+<script src="/language.js" defer></script>
 </body>
 </html>
