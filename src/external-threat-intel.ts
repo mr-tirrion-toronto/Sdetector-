@@ -1,6 +1,6 @@
 import type { Finding } from "./analyzer";
 
-export type ExternalThreatSource = "google_safe_browsing" | "urlhaus" | "phishtank" | "virustotal";
+export type ExternalThreatSource = "google_web_risk" | "urlhaus" | "phishtank" | "virustotal";
 export type ProviderState = "ok" | "not_configured" | "unavailable" | "error";
 
 export interface ExternalProviderResult {
@@ -21,16 +21,16 @@ export interface ExternalThreatIntelResult {
 }
 
 export interface ExternalThreatIntelEnv {
-  GOOGLE_SAFE_BROWSING_API_KEY?: string;
+  GOOGLE_WEB_RISK_API_KEY?: string;
   URLHAUS_AUTH_KEY?: string;
   PHISHTANK_API_KEY?: string;
-  VIRUSTOTAL_API_KEY?: string;
+  VIRUSTOTAL_PREMIUM_API_KEY?: string;
 }
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 const SOURCES: ExternalThreatSource[] = [
-  "google_safe_browsing", "urlhaus", "phishtank", "virustotal"
+  "google_web_risk", "urlhaus", "phishtank", "virustotal"
 ];
 
 function unavailable(source: ExternalThreatSource, status: ProviderState, summary: string, errorCode: string | null = null): ExternalProviderResult {
@@ -55,29 +55,23 @@ async function request(fetcher: FetchLike, input: RequestInfo | URL, init: Reque
   }
 }
 
-async function googleSafeBrowsing(url: string, key: string, fetcher: FetchLike): Promise<ExternalProviderResult> {
-  const endpoint = new URL("https://safebrowsing.googleapis.com/v4/threatMatches:find");
+async function googleWebRisk(url: string, key: string, fetcher: FetchLike): Promise<ExternalProviderResult> {
+  const endpoint = new URL("https://webrisk.googleapis.com/v1/uris:search");
   endpoint.searchParams.set("key", key);
+  endpoint.searchParams.set("uri", url);
+  for (const threatType of ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE"]) {
+    endpoint.searchParams.append("threatTypes", threatType);
+  }
   const response = await request(fetcher, endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({
-      client: { clientId: "scam-detector", clientVersion: "1.0" },
-      threatInfo: {
-        threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
-        platformTypes: ["ANY_PLATFORM"],
-        threatEntryTypes: ["URL"],
-        threatEntries: [{ url }]
-      }
-    })
+    method: "GET", headers: { accept: "application/json" }
   });
   if (!response.ok) throw new Error("HTTP_" + response.status);
   const payload = await boundedJson(response);
-  const matches = Array.isArray(payload.matches) ? payload.matches : [];
+  const matches = Array.isArray(payload.threat?.threatTypes) ? payload.threat.threatTypes : [];
   return {
-    source: "google_safe_browsing", status: "ok", checkedAt: new Date().toISOString(),
+    source: "google_web_risk", status: "ok", checkedAt: new Date().toISOString(),
     matched: matches.length > 0, confirmed: matches.length > 0, matchCount: matches.length,
-    summary: matches.length ? "Google Safe Browsing reported this URL in a threat category." : "No Google Safe Browsing match was returned for this URL.",
+    summary: matches.length ? "Google Web Risk reported this URL in: " + matches.join(", ") + "." : "Google Web Risk returned no matching threat types for this URL.",
     errorCode: null
   };
 }
@@ -162,10 +156,10 @@ export async function lookupExternalThreatIntelligence(
   url.hash = "";
   const providerUrl = url.toString();
   const configured: Array<{ source: ExternalThreatSource; key: string | undefined; run: (key: string) => Promise<ExternalProviderResult> }> = [
-    { source: "google_safe_browsing", key: env.GOOGLE_SAFE_BROWSING_API_KEY, run: key => googleSafeBrowsing(providerUrl, key, fetcher) },
+    { source: "google_web_risk", key: env.GOOGLE_WEB_RISK_API_KEY, run: key => googleWebRisk(providerUrl, key, fetcher) },
     { source: "urlhaus", key: env.URLHAUS_AUTH_KEY, run: key => urlhaus(providerUrl, key, fetcher) },
     { source: "phishtank", key: env.PHISHTANK_API_KEY, run: key => phishTank(providerUrl, key, fetcher) },
-    { source: "virustotal", key: env.VIRUSTOTAL_API_KEY, run: key => virusTotal(providerUrl, key, fetcher) }
+    { source: "virustotal", key: env.VIRUSTOTAL_PREMIUM_API_KEY, run: key => virusTotal(providerUrl, key, fetcher) }
   ];
   const providers = await Promise.all(configured.map(async item => {
     if (!item.key) return unavailable(item.source, "not_configured", "API credential is not configured.");
