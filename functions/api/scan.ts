@@ -442,6 +442,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         Number(domainIntelligence.assessment?.maxScore ?? 100)) * 100)
     : 0;
   const livePoints = (liveInspection?.findings ?? []).reduce((total, finding) => total + finding.points, 0);
+  const externalProviderPoints = externalThreatIntelligence.findings.reduce((total, finding) => total + finding.points, 0);
   const brandPoints = brandAssessment.findings.reduce((total, finding) => total + finding.points, 0);
   const score = confirmedThreat ? 100 : Math.min(100, Math.max(result.score, Math.min(100, externalScore)) + livePoints + brandPoints);
   const riskLevel = score >= 70 ? "critical" : score >= 40 ? "high" : score >= 20 ? "guarded" : "low";
@@ -496,7 +497,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   changeMonitoring.previousCheckedAt = previousCheckedAt;
   const legitimacyAssessment = assessLegitimacy({
     brands: brandAssessment, live: liveInspection, threat: threatIntelligence,
-    findings, independentEvidence
+    externalThreat: externalThreatIntelligence, findings, independentEvidence
   });
   let assessmentStatus:
     | "known_threat_detected"
