@@ -17,7 +17,7 @@
 - Provider failures, timeouts and rate limits are shown as unavailable intelligence, never as a clean verdict.
 
 ## On-demand multi-source reputation checks
-- The scan API can query the official Google Web Risk v4 URL threat-match endpoint, URLhaus URL lookup API, PhishTank Check URL API and VirusTotal v3 URL analysis endpoint.
+- The scan API can query the official Google Web Risk v1 URL Lookup API, URLhaus URL lookup API, PhishTank Check URL API and VirusTotal v3 URL analysis endpoint.
 - Each provider is optional and independently reports `ok`, `not_configured` or `unavailable`; provider failures never become clean verdicts.
 - API credentials are server-side Cloudflare Pages secrets only: `GOOGLE_WEB_RISK_API_KEY`, `URLHAUS_AUTH_KEY`, `PHISHTANK_API_KEY`, and `VIRUSTOTAL_PREMIUM_API_KEY`.
 - Before any external reputation lookup, URL username/password, query string and fragment are removed. Providers receive only the normalized scheme, hostname and path. This protects common tracking/session query parameters but cannot guarantee that a token embedded in a path is non-sensitive.
