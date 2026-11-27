@@ -523,7 +523,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   limitations.push(...brandAssessment.limitations, ...relationshipGraph.limitations, ...scamDna.limitations);
   if (changeMonitoring.status === "history_unavailable") limitations.push(changeMonitoring.note);
   if (externalThreatIntelligence.status === "not_configured") {
-    limitations.push("Google Safe Browsing, URLhaus, PhishTank and VirusTotal API lookups are not configured. Local Phishunt intelligence remains separate.");
+    limitations.push("Google Web Risk, URLhaus, PhishTank and VirusTotal Premium lookups are not configured. Local Phishunt intelligence remains separate.");
   } else if (externalThreatIntelligence.status === "partial" || externalThreatIntelligence.status === "unavailable") {
     limitations.push("One or more external reputation providers are not configured or unavailable. Provider coverage is incomplete; a missing match is not conclusive.");
   }
