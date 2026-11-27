@@ -246,7 +246,7 @@ function renderResult(data){
     '<div class="risk '+riskBadgeClass+'"><b>'+Number(data.score)+'/100</b><span>'+riskBadgeText+'</span><small style="display:block;color:var(--muted);font-size:9px;margin-top:5px">'+escapeHtml(String(data.confidence||'limited').toUpperCase())+' CONFIDENCE</small></div></div>'+
     '<div class="meter" role="img" aria-label="URL signal score '+Number(data.score)+' out of 100"><div class="meter-fill" style="width:'+Math.max(0,Math.min(100,Number(data.score)))+'%;background:'+(category==='confirmed_threat'||category==='critical'||category==='high'?'#ff7185':category==='suspicious'?'#ffc66d':'#69f0c1')+'"></div></div>'+
     aiAnalysisPanel+
-    '<div class="feed-panel"><strong>Threat intelligence · '+escapeHtml(intelLabel)+'</strong>'+
+    '<div class="feed-panel"><strong>Scheduled threat feeds · '+escapeHtml(intelLabel)+'</strong>'+
     (feedRows||'<div class="feed-row"><span>No feed status is available.</span></div>')+
     '<p class="feed-note">'+escapeHtml(intelNote)+'</p></div>'+
     externalProviderPanel+
