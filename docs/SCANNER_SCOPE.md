@@ -17,12 +17,12 @@
 - Provider failures, timeouts and rate limits are shown as unavailable intelligence, never as a clean verdict.
 
 ## On-demand multi-source reputation checks
-- The scan API can query the official Google Safe Browsing v4 URL threat-match endpoint, URLhaus URL lookup API, PhishTank Check URL API and VirusTotal v3 URL analysis endpoint.
+- The scan API can query the official Google Web Risk v4 URL threat-match endpoint, URLhaus URL lookup API, PhishTank Check URL API and VirusTotal v3 URL analysis endpoint.
 - Each provider is optional and independently reports `ok`, `not_configured` or `unavailable`; provider failures never become clean verdicts.
-- API credentials are server-side Cloudflare Pages secrets only: `GOOGLE_SAFE_BROWSING_API_KEY`, `URLHAUS_AUTH_KEY`, `PHISHTANK_API_KEY`, and `VIRUSTOTAL_API_KEY`.
+- API credentials are server-side Cloudflare Pages secrets only: `GOOGLE_WEB_RISK_API_KEY`, `URLHAUS_AUTH_KEY`, `PHISHTANK_API_KEY`, and `VIRUSTOTAL_PREMIUM_API_KEY`.
 - Before any external reputation lookup, URL username/password, query string and fragment are removed. Providers receive only the normalized scheme, hostname and path. This protects common tracking/session query parameters but cannot guarantee that a token embedded in a path is non-sensitive.
-- Google Safe Browsing, URLhaus and verified PhishTank matches are treated as provider-confirmed threat listings. VirusTotal is an aggregation of vendor verdicts and is shown as corroborating reputation, not as a single authoritative confirmation.
-- Provider APIs have separate rate limits, eligibility, terms and data-sharing policies. Configure only credentials and usage permitted for the deployment. No provider API key is generated or embedded in source code.
+- Google Web Risk, URLhaus and verified PhishTank matches are treated as provider-confirmed threat listings. VirusTotal is an aggregation of vendor verdicts and is shown as corroborating reputation, not as a single authoritative confirmation.
+- Provider APIs have separate rate limits, eligibility, terms and data-sharing policies. Google Safe Browsing APIs are non-commercial only; Google Web Risk is the appropriate Google service for commercial malicious-URL checks. URLhaus Community API use by for-profit services may require its enhanced commercial API. PhishTank permits commercial use of its Data/API subject to its terms and rate limits. VirusTotal Public API is prohibited in commercial products and services; only a separately licensed VirusTotal Premium key may be configured here. No provider API key is generated or embedded in source code.
 - A configured key does not guarantee coverage: provider results may be unavailable, stale, rate-limited, or absent for new threats. Provider status and provenance must be shown separately from local feed status.
 
 ## Scheduled threat-intelligence feeds
