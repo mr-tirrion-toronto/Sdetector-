@@ -10,6 +10,8 @@ async function run(){
  try{
   const created=await post({scanId:scan.scanId});
   record=await get(created.evidenceId);
+  const printEvidence=document.getElementById("print-evidence");
+  if(printEvidence)printEvidence.innerHTML='<div class="pr-checks"><span><b>Evidence record:</b> '+esc(record.evidenceId)+'</span><span><b>Manifest SHA-256:</b> <span class="forensic-hash">'+esc(record.manifestSha256)+'</span></span><span><b>Integrity:</b> '+((record.integrity?.manifestValid&&record.integrity?.custodyChain?.valid)?"Verified":"Not verified")+'</span><span><b>Digital signature:</b> '+(record.signature?.valid===true?"Ed25519 valid":record.signature?.status==="not_configured"?"Not configured / unsigned":"Unavailable or invalid")+'</span><span><b>Custody events:</b> '+Number(record.custodyEvents?.length||0)+'</span></div>';
   if(record.integrity?.manifestValid&&record.integrity?.custodyChain?.valid){
    await post({evidenceId:created.evidenceId,eventType:"integrity_verified"});
    record=await get(created.evidenceId);
